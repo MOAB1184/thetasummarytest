@@ -172,7 +172,7 @@ function CreateAccount() {
             >
               <option value="">Select a school</option>
               {schools.map((school) => (
-                <option key={school.id} value={school.id}>
+                <option key={school.id} value={school.name}>
                   {school.name}
                 </option>
               ))}

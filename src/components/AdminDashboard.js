@@ -13,6 +13,10 @@ function AdminDashboard() {
   const [error, setError] = useState('');
   const [showCreateSchool, setShowCreateSchool] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [teacherClasses, setTeacherClasses] = useState([]);
+  const [classStudents, setClassStudents] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,8 +42,9 @@ function AdminDashboard() {
             const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
             const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
             return {
-              ...teacherData,
-              email: email
+              name: teacherData.name,
+              email: email,
+              school: teacherData.school // Just use the school name directly since we store it that way
             };
           })
       );
@@ -235,6 +240,68 @@ function AdminDashboard() {
     }
   };
 
+  const loadTeacherClasses = async (schoolName, teacherEmail) => {
+    try {
+      const classes = await wasabiStorage.listObjects(`${schoolName}/teachers/${teacherEmail}/classes/`);
+      const classesData = await Promise.all(
+        classes
+          .filter(c => c.Key.endsWith('/info.json'))
+          .map(async (c) => {
+            const classCode = c.Key.split('/')[4]; // Get class code from path
+            const classData = await wasabiStorage.getData(`${schoolName}/teachers/${teacherEmail}/classes/${classCode}/info.json`);
+            return { ...classData, classCode };
+          })
+      );
+      setTeacherClasses(classesData);
+    } catch (error) {
+      console.error('Error loading teacher classes:', error);
+      setError('Failed to load classes');
+    }
+  };
+
+  const loadClassStudents = async (schoolName, classCode) => {
+    try {
+      const students = await wasabiStorage.listObjects(`${schoolName}/teachers/${selectedTeacher.email}/classes/${classCode}/students/`);
+      const studentsData = await Promise.all(
+        students
+          .filter(s => s.Key.endsWith('/info.json'))
+          .map(async (s) => {
+            const studentEmail = s.Key.split('/')[6]; // Get student email from path
+            const studentData = await wasabiStorage.getData(`${schoolName}/students/${studentEmail}/info.json`);
+            return { ...studentData, email: studentEmail };
+          })
+      );
+      setClassStudents(studentsData);
+    } catch (error) {
+      console.error('Error loading students:', error);
+      setError('Failed to load students');
+    }
+  };
+
+  const handleTeacherClick = async (teacher) => {
+    if (selectedTeacher?.email === teacher.email) {
+      setSelectedTeacher(null);
+      setTeacherClasses([]);
+      setSelectedClass(null);
+      setClassStudents([]);
+    } else {
+      setSelectedTeacher(teacher);
+      setSelectedClass(null);
+      setClassStudents([]);
+      await loadTeacherClasses(teacher.school, teacher.email);
+    }
+  };
+
+  const handleClassClick = async (classData) => {
+    if (selectedClass?.classCode === classData.classCode) {
+      setSelectedClass(null);
+      setClassStudents([]);
+    } else {
+      setSelectedClass(classData);
+      await loadClassStudents(selectedTeacher.school, classData.classCode);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading admin dashboard...</div>;
   }
@@ -315,6 +382,18 @@ function AdminDashboard() {
           justify-content: space-between;
           align-items: center;
           min-width: 400px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .teacher-item:hover {
+          background-color: #2d2d2d;
+        }
+
+        .teacher-item.selected {
+          background-color: #2d2d2d;
+          border-bottom-left-radius: 0;
+          border-bottom-right-radius: 0;
         }
 
         .teacher-info {
@@ -381,16 +460,25 @@ function AdminDashboard() {
           gap: 10px;
         }
 
-        .approve-button {
-          background-color: #28a745;
+        .approve-button, .deny-button {
           color: white;
           border: none;
           border-radius: 4px;
-          padding: 10px;
+          padding: 12px 0;
           cursor: pointer;
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 16px;
+          font-weight: 500;
           transition: background-color 0.2s;
+          width: 100%;
+          height: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0;
+        }
+
+        .approve-button {
+          background-color: #28a745;
         }
 
         .approve-button:hover {
@@ -399,14 +487,6 @@ function AdminDashboard() {
 
         .deny-button {
           background-color: #dc3545;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 10px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: bold;
-          transition: background-color 0.2s;
         }
 
         .deny-button:hover {
@@ -429,6 +509,103 @@ function AdminDashboard() {
           padding: 10px;
           border-radius: 4px;
           margin-bottom: 20px;
+        }
+
+        .teacher-classes {
+          background-color: #2d2d2d;
+          padding: 15px;
+          margin-top: -1px;
+          border-bottom-left-radius: 4px;
+          border-bottom-right-radius: 4px;
+        }
+
+        .classes-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        .class-item {
+          background-color: #1a1a1a;
+          border-radius: 4px;
+          padding: 12px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .class-item:hover {
+          background-color: #353535;
+        }
+
+        .class-item.selected {
+          background-color: #353535;
+        }
+
+        .class-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .class-name {
+          font-weight: bold;
+          color: #fff;
+        }
+
+        .class-code {
+          color: #888;
+          font-size: 14px;
+        }
+
+        .class-students {
+          margin-top: 15px;
+          padding-top: 15px;
+          border-top: 1px solid #444;
+        }
+
+        .students-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-top: 10px;
+        }
+
+        .student-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px;
+          background-color: #1a1a1a;
+          border-radius: 4px;
+        }
+
+        .student-name {
+          color: #fff;
+        }
+
+        .student-email {
+          color: #888;
+          font-size: 14px;
+        }
+
+        .no-classes, .no-students {
+          color: #888;
+          font-style: italic;
+          text-align: center;
+          padding: 10px;
+        }
+
+        h4 {
+          color: #fff;
+          margin: 0 0 10px 0;
+          font-size: 16px;
+        }
+
+        h5 {
+          color: #fff;
+          margin: 0 0 8px 0;
+          font-size: 14px;
         }
       `}</style>
       <BackButton destination="/" />
@@ -480,17 +657,81 @@ function AdminDashboard() {
             <h3>{selectedSchool.name} Teachers</h3>
             <div className="teachers-list">
               {approvedTeachers[selectedSchool.name]?.map((teacher) => (
-                <div key={teacher.email} className="teacher-item">
-                  <div className="teacher-info">
-                    <span className="teacher-name">{teacher.name}</span>
-                    <span className="teacher-email">{teacher.email}</span>
+                <div key={teacher.email}>
+                  <div className="teacher-item">
+                    <div className="teacher-info" onClick={() => handleTeacherClick(teacher)} style={{ cursor: 'pointer' }}>
+                      <span className="teacher-name">{teacher.name}</span>
+                      <span className="teacher-email">{teacher.email}</span>
+                    </div>
+                    <div className="teacher-actions">
+                      <button 
+                        className="delete-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTeacher(selectedSchool.id, teacher.email);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <button 
-                    className="delete-button"
-                    onClick={() => handleDeleteTeacher(selectedSchool.id, teacher.email)}
-                  >
-                    Delete
-                  </button>
+                  {selectedTeacher?.email === teacher.email && (
+                    <div className="teacher-details" style={{ 
+                      backgroundColor: '#1a1a1a',
+                      padding: '15px',
+                      marginTop: '1px',
+                      borderBottomLeftRadius: '4px',
+                      borderBottomRightRadius: '4px'
+                    }}>
+                      <div className="classes-section">
+                        <h4 style={{ color: '#fff', marginBottom: '10px' }}>Classes:</h4>
+                        {teacherClasses.length > 0 ? (
+                          teacherClasses.map((classData) => (
+                            <div 
+                              key={classData.classCode} 
+                              className={`class-item ${selectedClass?.classCode === classData.classCode ? 'selected' : ''}`}
+                              onClick={() => handleClassClick(classData)}
+                              style={{ 
+                                backgroundColor: selectedClass?.classCode === classData.classCode ? '#353535' : '#2d2d2d',
+                                padding: '10px',
+                                marginBottom: '8px',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <div className="class-info">
+                                <span style={{ color: '#fff', fontWeight: 'bold' }}>{classData.name}</span>
+                                <span style={{ color: '#888', fontSize: '14px' }}>Code: {classData.classCode}</span>
+                              </div>
+                              {selectedClass?.classCode === classData.classCode && (
+                                <div className="class-students" style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
+                                  <h5 style={{ color: '#fff', marginBottom: '10px' }}>Enrolled Students:</h5>
+                                  <div className="students-list">
+                                    {classStudents.map((student) => (
+                                      <div key={student.email} className="student-item" style={{
+                                        backgroundColor: '#1a1a1a',
+                                        padding: '10px',
+                                        borderRadius: '4px',
+                                        marginBottom: '8px'
+                                      }}>
+                                        <span style={{ color: '#fff' }}>{student.name}</span>
+                                        <span style={{ color: '#888', fontSize: '14px' }}>{student.email}</span>
+                                      </div>
+                                    ))}
+                                    {classStudents.length === 0 && (
+                                      <p style={{ color: '#888', fontStyle: 'italic' }}>No students enrolled in this class</p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p style={{ color: '#888', fontStyle: 'italic', padding: '10px' }}>No classes created</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -506,7 +747,7 @@ function AdminDashboard() {
                   <div className="teacher-info">
                     <span className="teacher-name">{teacher.name}</span>
                     <span className="teacher-email">{teacher.email}</span>
-                    <span className="teacher-school">{teacher.school}</span>
+                    <span className="teacher-school" style={{ color: '#888', fontSize: '14px' }}>School: {teacher.school}</span>
                   </div>
                   <div className="approval-actions">
                     <button 
