@@ -127,7 +127,6 @@ function Login() {
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
             style={{ color: '#ffffff' }}
           />
         </div>
