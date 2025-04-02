@@ -147,27 +147,23 @@ function AdminDashboard() {
       // Remove from pending list immediately for UI responsiveness
       setTeachers(prev => prev.filter(t => t.email !== email));
 
-      // Create teacher folder structure and move data in parallel
-      await Promise.all([
-        wasabiStorage.s3.putObject({
-          Bucket: wasabiStorage.bucket,
-          Key: `${schoolName}/teachers/${email}/`,
-          Body: '',
-          ContentType: 'application/x-directory'
-        }).promise(),
-        wasabiStorage.s3.putObject({
-          Bucket: wasabiStorage.bucket,
-          Key: `${schoolName}/teachers/${email}/classes/`,
-          Body: '',
-          ContentType: 'application/x-directory'
-        }).promise(),
-        wasabiStorage.saveData(`${schoolName}/teachers/${email}/info.json`, {
-          ...teacherData,
-          approved: true,
-          approvedAt: new Date().toISOString()
-        }),
-        wasabiStorage.deleteData(`teacher-approval/${email}.json`)
-      ]);
+      // Create teacher folder structure
+      await wasabiStorage.s3.putObject({
+        Bucket: wasabiStorage.bucket,
+        Key: `${schoolName}/teachers/${email}/`,
+        Body: '',
+        ContentType: 'application/x-directory'
+      }).promise();
+
+      // Save teacher data
+      await wasabiStorage.saveData(`${schoolName}/teachers/${email}/info.json`, {
+        ...teacherData,
+        approved: true,
+        approvedAt: new Date().toISOString()
+      });
+
+      // Delete from pending
+      await wasabiStorage.deleteData(`teacher-approval/${email}.json`);
 
       // Update approved teachers list
       setApprovedTeachers(prev => ({
@@ -181,11 +177,12 @@ function AdminDashboard() {
           }
         ]
       }));
+
+      await loadData(); // Reload all data to ensure consistency
     } catch (error) {
       console.error('Error approving teacher:', error);
       setError('Failed to approve teacher');
-      // Revert the UI change if the operation failed
-      loadData();
+      loadData(); // Reload data if there was an error
     }
   };
 
