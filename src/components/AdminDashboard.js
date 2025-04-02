@@ -216,15 +216,21 @@ function AdminDashboard() {
     }
   };
 
-  const removeTeacher = async (schoolName, teacherEmail) => {
+  const handleDeleteTeacher = async (schoolId, teacherEmail) => {
     try {
+      const school = schools.find(s => s.id === schoolId);
+      if (!school) {
+        setError('School not found');
+        return;
+      }
+
       // Remove teacher's data
-      await wasabiStorage.deleteData(`${schoolName}/teachers/${teacherEmail}/info.json`);
+      await wasabiStorage.deleteData(`${school.name}/teachers/${teacherEmail}/info.json`);
       
       // Update state
       setApprovedTeachers(prev => ({
         ...prev,
-        [schoolName]: prev[schoolName].filter(t => t.email !== teacherEmail)
+        [school.name]: prev[school.name].filter(t => t.email !== teacherEmail)
       }));
     } catch (error) {
       console.error('Error removing teacher:', error);
@@ -237,221 +243,294 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="admin-dashboard" style={{ 
-      padding: '20px',
-      maxWidth: '1400px',
-      margin: '0 auto',
-      minHeight: '100vh',
-      backgroundColor: '#1a1a1a',
-      color: 'white'
-    }}>
+    <div className="admin-dashboard">
+      <style jsx>{`
+        .admin-dashboard {
+          padding: 20px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .admin-content {
+          display: flex;
+          flex-direction: column;
+          gap: 30px;
+        }
+
+        .schools-section {
+          margin-bottom: 30px;
+        }
+
+        .schools-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+          gap: 20px;
+          margin-top: 20px;
+        }
+
+        .school-card {
+          background-color: #2d2d2d;
+          border-radius: 8px;
+          padding: 20px;
+          cursor: pointer;
+          transition: transform 0.2s, background-color 0.2s;
+          position: relative;
+        }
+
+        .school-card:hover {
+          transform: translateY(-2px);
+          background-color: #353535;
+        }
+
+        .school-card h4 {
+          margin: 0 0 10px 0;
+          color: #fff;
+          font-size: 18px;
+          padding-right: 30px;
+        }
+
+        .teacher-count {
+          color: #888;
+          margin: 0;
+          font-size: 14px;
+        }
+
+        .teachers-section {
+          background-color: #2d2d2d;
+          border-radius: 8px;
+          padding: 20px;
+          width: 100%;
+        }
+
+        .teachers-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-top: 15px;
+          width: 100%;
+        }
+
+        .teacher-item {
+          background-color: #1a1a1a;
+          border-radius: 4px;
+          padding: 15px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          min-width: 400px;
+        }
+
+        .teacher-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+          margin-right: 20px;
+        }
+
+        .teacher-name {
+          font-weight: bold;
+          color: #fff;
+          font-size: 16px;
+        }
+
+        .teacher-email {
+          color: #888;
+          font-size: 14px;
+        }
+
+        .delete-button {
+          background-color: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.2s;
+          min-width: 80px;
+          white-space: nowrap;
+        }
+
+        .delete-button:hover {
+          background-color: #c82333;
+        }
+
+        .teacher-approvals-section {
+          background-color: #2d2d2d;
+          border-radius: 8px;
+          padding: 20px;
+        }
+
+        .teacher-approvals-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+          gap: 20px;
+          margin-top: 15px;
+        }
+
+        .teacher-approval-item {
+          background-color: #1a1a1a;
+          border-radius: 8px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .approval-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .approve-button {
+          background-color: #28a745;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 10px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: bold;
+          transition: background-color 0.2s;
+        }
+
+        .approve-button:hover {
+          background-color: #218838;
+        }
+
+        .deny-button {
+          background-color: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 10px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: bold;
+          transition: background-color 0.2s;
+        }
+
+        .deny-button:hover {
+          background-color: #c82333;
+        }
+
+        h2 {
+          color: #fff;
+          margin-bottom: 30px;
+        }
+
+        h3 {
+          color: #fff;
+          margin: 0 0 15px 0;
+        }
+
+        .error-message {
+          background-color: #dc3545;
+          color: white;
+          padding: 10px;
+          border-radius: 4px;
+          margin-bottom: 20px;
+        }
+      `}</style>
       <BackButton destination="/" />
-      <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>Admin Dashboard</h2>
+      <h2>Admin Dashboard</h2>
+      {error && <div className="error-message">{error}</div>}
 
-      {error && <div style={{ 
-        backgroundColor: '#dc3545', 
-        color: 'white', 
-        padding: '12px', 
-        borderRadius: '6px', 
-        marginBottom: '1rem' 
-      }}>{error}</div>}
-
-      <div className="schools-section">
-        <h3>Schools</h3>
-        {showCreateSchool ? (
-          <div className="create-school-form">
-            <input
-              type="text"
-              value={newSchoolName}
-              onChange={(e) => setNewSchoolName(e.target.value)}
-              placeholder="Enter school name"
-            />
-            <div className="form-actions">
-              <button onClick={handleCreateSchool}>Create School</button>
-              <button onClick={() => setShowCreateSchool(false)} className="secondary-button">
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowCreateSchool(true)} className="create-school-button">
-            Create New School
-          </button>
-        )}
-        
-        <div className="schools-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '20px',
-          marginTop: '20px'
-        }}>
-          {schools.map(school => (
-            <div key={school.id} className="school-box" style={{
-              backgroundColor: '#2d2d2d',
-              borderRadius: '8px',
-              padding: '20px',
-              cursor: 'pointer',
-              transition: 'transform 0.2s, background-color 0.2s',
-              ':hover': {
-                transform: 'translateY(-2px)',
-                backgroundColor: '#353535'
-              }
-            }} onClick={() => setSelectedSchool(selectedSchool?.id === school.id ? null : school)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0 }}>{school.name}</h4>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeSchool(school.id);
-                  }}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    fontSize: '14px',
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0,
-                    minWidth: '24px'
-                  }}
-                >
-                  ×
+      <div className="admin-content">
+        <div className="schools-section">
+          <h3>Schools</h3>
+          {showCreateSchool ? (
+            <div className="create-school-form">
+              <input
+                type="text"
+                value={newSchoolName}
+                onChange={(e) => setNewSchoolName(e.target.value)}
+                placeholder="Enter school name"
+              />
+              <div className="form-actions">
+                <button onClick={handleCreateSchool}>Create School</button>
+                <button onClick={() => setShowCreateSchool(false)} className="secondary-button">
+                  Cancel
                 </button>
               </div>
-              <div style={{ marginTop: '10px', color: '#888' }}>
-                Teachers: {approvedTeachers[school.name]?.length || 0}
-              </div>
-              {selectedSchool?.id === school.id && (
-                <div style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
-                  <h5 style={{ margin: '0 0 10px 0' }}>Teachers:</h5>
-                  {approvedTeachers[school.name]?.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {approvedTeachers[school.name].map(teacher => (
-                        <div key={teacher.email} style={{ 
-                          backgroundColor: '#1a1a1a',
-                          padding: '12px',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <div>
-                            <div>{teacher.name}</div>
-                            <div style={{ color: '#888', fontSize: '12px' }}>{teacher.email}</div>
-                          </div>
-                          <button
-                            onClick={() => removeTeacher(school.name, teacher.email)}
-                            style={{
-                              width: '24px',
-                              height: '24px',
-                              fontSize: '14px',
-                              backgroundColor: '#dc3545',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              minWidth: '24px'
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ color: '#888' }}>No teachers yet</div>
-                  )}
-                </div>
-              )}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {teachers.length > 0 && (
-        <div className="teachers-section" style={{ marginTop: '40px' }}>
-          <h3>Pending Teacher Approvals</h3>
-          <div className="teachers-list" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-            gap: '20px'
-          }}>
-            {teachers.map(teacher => (
-              <div key={teacher.email} className="teacher-item" style={{
-                backgroundColor: '#2d2d2d',
-                borderRadius: '8px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px'
-              }}>
-                <div className="teacher-info">
-                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{teacher.name}</div>
-                  <div style={{ color: '#888' }}>{teacher.email}</div>
-                  <div style={{ color: '#888' }}>School: {teacher.school}</div>
-                </div>
-                <div className="teacher-actions" style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '10px',
-                  marginTop: 'auto',
-                  maxWidth: '400px',
-                  margin: '10px auto 0'
-                }}>
-                  <button 
-                    className="approve-button"
-                    onClick={() => handleApproveTeacher(teacher.email)}
-                    style={{
-                      height: '36px',
-                      backgroundColor: '#28a745',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    Approve
-                  </button>
-                  <button 
-                    className="deny-button"
-                    onClick={() => handleDenyTeacher(teacher.email)}
-                    style={{
-                      height: '36px',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    Deny
-                  </button>
-                </div>
+          ) : (
+            <button onClick={() => setShowCreateSchool(true)} className="create-school-button">
+              Create New School
+            </button>
+          )}
+          
+          <div className="schools-grid">
+            {schools.map((school) => (
+              <div 
+                key={school.id} 
+                className="school-card"
+                onClick={() => setSelectedSchool(school)}
+              >
+                <h4>{school.name}</h4>
+                <p className="teacher-count">
+                  {approvedTeachers[school.name]?.length || 0} Teachers
+                </p>
               </div>
             ))}
           </div>
         </div>
-      )}
+
+        {selectedSchool && (
+          <div className="teachers-section">
+            <h3>{selectedSchool.name} Teachers</h3>
+            <div className="teachers-list">
+              {approvedTeachers[selectedSchool.name]?.map((teacher) => (
+                <div key={teacher.email} className="teacher-item">
+                  <div className="teacher-info">
+                    <span className="teacher-name">{teacher.name}</span>
+                    <span className="teacher-email">{teacher.email}</span>
+                  </div>
+                  <button 
+                    className="delete-button"
+                    onClick={() => handleDeleteTeacher(selectedSchool.id, teacher.email)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {teachers.length > 0 && (
+          <div className="teacher-approvals-section">
+            <h3>Teacher Approvals</h3>
+            <div className="teacher-approvals-list">
+              {teachers.map((teacher) => (
+                <div key={teacher.email} className="teacher-approval-item">
+                  <div className="teacher-info">
+                    <span className="teacher-name">{teacher.name}</span>
+                    <span className="teacher-email">{teacher.email}</span>
+                    <span className="teacher-school">{teacher.school}</span>
+                  </div>
+                  <div className="approval-actions">
+                    <button 
+                      className="approve-button"
+                      onClick={() => handleApproveTeacher(teacher.email)}
+                    >
+                      Approve
+                    </button>
+                    <button 
+                      className="deny-button"
+                      onClick={() => handleDenyTeacher(teacher.email)}
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
