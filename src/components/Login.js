@@ -123,7 +123,7 @@ function Login() {
         <div className="form-group">
           <label htmlFor="email">Email</label>
           <input
-            type="email"
+            type="text"
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
