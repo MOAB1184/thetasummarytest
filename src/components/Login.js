@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import wasabiStorage from '../services/WasabiStorage';
 
@@ -6,6 +6,7 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [role, setRole] = useState('student');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -13,7 +14,7 @@ function Login() {
     setError('');
 
     try {
-      // Admin login check - allow both 'admin' and 'admin@example.com'
+      // Admin login check
       if ((email === 'admin' || email === 'admin@example.com') && password === 'duggy') {
         sessionStorage.setItem('userEmail', 'admin');
         sessionStorage.setItem('userRole', 'admin');
@@ -29,20 +30,48 @@ function Login() {
       }
 
       // Check all possible locations for the user
-      const pendingTeacher = await wasabiStorage.getData(wasabiStorage.getPendingTeacherPath(email));
-      const approvedTeacher = await wasabiStorage.getData(wasabiStorage.getTeacherPath(email));
-      const student = await wasabiStorage.getData(wasabiStorage.getStudentPath(email));
-
       let userData = null;
       let isPending = false;
+      let userSchool = null;
 
-      if (approvedTeacher) {
-        userData = approvedTeacher;
-      } else if (student) {
-        userData = student;
-      } else if (pendingTeacher) {
-        userData = pendingTeacher;
-        isPending = true;
+      if (role === 'teacher') {
+        // First check pending teachers
+        const pendingTeacher = await wasabiStorage.getData(`teacher-approval/${email}.json`);
+        if (pendingTeacher) {
+          userData = pendingTeacher;
+          isPending = true;
+          userSchool = pendingTeacher.school;
+        } else {
+          // Then check all schools for approved teachers
+          const schools = await wasabiStorage.getData('schools.json') || [];
+          for (const school of schools) {
+            const approvedTeacher = await wasabiStorage.getData(`${school.name}/teachers/${email}/info.json`);
+            if (approvedTeacher) {
+              userData = approvedTeacher;
+              userSchool = school.name;
+              break;
+            }
+          }
+        }
+      } else {
+        // First check pending students
+        const pendingStudent = await wasabiStorage.getData(`student-approval/${email}.json`);
+        if (pendingStudent) {
+          userData = pendingStudent;
+          isPending = true;
+          userSchool = pendingStudent.school;
+        } else {
+          // Then check all schools for approved students
+          const schools = await wasabiStorage.getData('schools.json') || [];
+          for (const school of schools) {
+            const approvedStudent = await wasabiStorage.getData(`${school.name}/students/${email}/info.json`);
+            if (approvedStudent) {
+              userData = approvedStudent;
+              userSchool = school.name;
+              break;
+            }
+          }
+        }
       }
 
       if (!userData) {
@@ -56,26 +85,22 @@ function Login() {
       }
 
       // Only check pending status for teachers
-      if (isPending && userData.role === 'teacher') {
+      if (isPending && role === 'teacher') {
         setError('Your teacher account is pending admin approval');
         return;
       }
 
       // Store user info in session storage
       sessionStorage.setItem('userEmail', userData.email);
-      sessionStorage.setItem('userRole', userData.role);
+      sessionStorage.setItem('userRole', role);
       sessionStorage.setItem('userName', userData.name);
+      sessionStorage.setItem('userSchool', userSchool);
 
       // Navigate based on role
-      switch (userData.role) {
-        case 'teacher':
-          navigate('/teacher-dashboard');
-          break;
-        case 'student':
-          navigate('/student-dashboard');
-          break;
-        default:
-          setError('Invalid user role');
+      if (role === 'teacher') {
+        navigate('/teacher-dashboard');
+      } else {
+        navigate('/student-dashboard');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -98,15 +123,14 @@ function Login() {
         <div className="form-group">
           <label htmlFor="email">Email</label>
           <input
-            type="text"
+            type="email"
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="Enter your email"
+            style={{ color: '#ffffff' }}
           />
         </div>
-
         <div className="form-group">
           <label htmlFor="password">Password</label>
           <input
@@ -115,21 +139,29 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            placeholder="Enter your password"
+            style={{ color: '#ffffff' }}
           />
         </div>
-
-        <button type="submit">Login</button>
+        <div className="form-group">
+          <label htmlFor="role">Role</label>
+          <select
+            id="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            required
+            style={{ color: '#ffffff' }}
+          >
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </select>
+        </div>
+        <button type="submit" className="login-button">
+          Login
+        </button>
       </form>
 
-      <p>
-        Don't have an account?{' '}
-        <button 
-          className="secondary-button"
-          onClick={() => navigate('/create-account')}
-        >
-          Create Account
-        </button>
+      <p className="create-account-link">
+        Don't have an account? <a href="/create-account">Create Account</a>
       </p>
     </div>
   );

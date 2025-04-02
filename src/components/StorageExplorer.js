@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import wasabiStorage from '../services/WasabiStorage';
 
 const StorageExplorer = ({ initialPath = '' }) => {
   const [storageData, setStorageData] = useState([]);
@@ -7,6 +8,7 @@ const StorageExplorer = ({ initialPath = '' }) => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadStorageData();
@@ -22,78 +24,65 @@ const StorageExplorer = ({ initialPath = '' }) => {
     setBreadcrumbs([{ name: 'Root', path: '' }, ...crumbs]);
   };
 
-  const createFolder = (folderPath) => {
-    const key = `folder:${folderPath}`;
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, JSON.stringify({
-        type: 'folder',
-        created: new Date().toISOString(),
-        items: []
-      }));
-    }
-  };
-
-  const ensureFolderStructure = (teacherEmail, className = null) => {
-    const teacherPath = `/teachers/${teacherEmail}`;
-    createFolder(teacherPath);
-    
-    if (className) {
-      const classPath = `${teacherPath}/${className}`;
-      createFolder(classPath);
-      createFolder(`${classPath}/recordings`);
-      createFolder(`${classPath}/summaries`);
-    }
-  };
-
-  const loadStorageData = () => {
-    const data = [];
-    const prefix = currentPath.startsWith('/') ? currentPath.slice(1) : currentPath;
-    
-    // Get all items from localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      const value = localStorage.getItem(key);
+  const loadStorageData = async () => {
+    try {
+      setError('');
+      const data = [];
+      const prefix = currentPath.startsWith('/') ? currentPath.slice(1) : currentPath;
       
-      // Skip items that don't match the current path
-      if (prefix && !key.startsWith(prefix)) continue;
+      // List objects in current path
+      const objects = await wasabiStorage.listObjects(prefix);
       
-      try {
-        const parsedValue = JSON.parse(value);
-        const isFolder = key.startsWith('folder:');
-        const relativePath = key.replace('folder:', '');
+      for (const obj of objects) {
+        const key = obj.Key;
+        const name = key.split('/').pop();
+        
+        // Skip if not in current directory
+        if (prefix && !key.startsWith(prefix)) continue;
+        
+        // Determine if it's a folder
+        const isFolder = key.endsWith('/');
         
         if (isFolder) {
           data.push({
-            name: relativePath.split('/').pop() || 'Root',
+            name: name || 'Root',
             type: 'folder',
-            path: relativePath,
+            path: key,
             size: '-',
-            value: parsedValue,
-            lastModified: parsedValue.created,
+            lastModified: obj.LastModified,
             isFolder: true
           });
-        } else {
-          // Handle files
-          const type = key.startsWith('recording_') ? 'audio' : 
-                      typeof parsedValue === 'object' ? 'json' : 'text';
-          
+        } else if (key.endsWith('.json')) {
+          // For JSON files, fetch and parse the content
+          const content = await wasabiStorage.getData(key);
           data.push({
-            name: key.split('/').pop(),
-            type,
+            name,
+            type: 'json',
             path: key,
-            size: new Blob([value]).size,
-            value: parsedValue,
-            lastModified: new Date().toISOString(),
+            size: new Blob([JSON.stringify(content)]).size,
+            value: content,
+            lastModified: obj.LastModified,
+            isFolder: false
+          });
+        } else {
+          // For other files
+          data.push({
+            name,
+            type: 'file',
+            path: key,
+            size: obj.Size,
+            lastModified: obj.LastModified,
             isFolder: false
           });
         }
-      } catch (error) {
-        console.error(`Error parsing item ${key}:`, error);
       }
-    }
 
-    sortData(data, sortBy, sortOrder);
-    setStorageData(data);
+      sortData(data, sortBy, sortOrder);
+      setStorageData(data);
+    } catch (error) {
+      console.error('Error loading storage data:', error);
+      setError('Failed to load storage data');
+    }
   };
 
   const handleFolderClick = (folder) => {
@@ -150,25 +139,35 @@ const StorageExplorer = ({ initialPath = '' }) => {
     setSelectedItem(selectedItem?.path === item.path ? null : item);
   };
 
-  const downloadItem = (item) => {
-    const data = localStorage.getItem(item.path);
-    const blob = new Blob([data], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = item.name + '.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadItem = async (item) => {
+    try {
+      const data = await wasabiStorage.getBinaryData(item.path);
+      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setError('Failed to download file');
+    }
   };
 
-  const deleteItem = (item) => {
+  const deleteItem = async (item) => {
     if (window.confirm(`Are you sure you want to delete ${item.name}?`)) {
-      localStorage.removeItem(item.path);
-      loadStorageData();
-      if (selectedItem?.path === item.path) {
-        setSelectedItem(null);
+      try {
+        await wasabiStorage.deleteData(item.path);
+        loadStorageData();
+        if (selectedItem?.path === item.path) {
+          setSelectedItem(null);
+        }
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        setError('Failed to delete item');
       }
     }
   };
@@ -182,6 +181,8 @@ const StorageExplorer = ({ initialPath = '' }) => {
           <span>Current Path: {currentPath || '/'}</span>
         </div>
       </div>
+
+      {error && <div className="error-message">{error}</div>}
 
       <div className="breadcrumbs">
         {breadcrumbs.map((crumb, index) => (
@@ -251,13 +252,10 @@ const StorageExplorer = ({ initialPath = '' }) => {
           <div className="storage-preview">
             <h4>Preview: {selectedItem.name}</h4>
             <div className="preview-content">
-              {selectedItem.type === 'audio' ? (
-                <audio controls src={selectedItem.value} />
+              {selectedItem.type === 'json' ? (
+                <pre>{JSON.stringify(selectedItem.value, null, 2)}</pre>
               ) : (
-                <pre>{typeof selectedItem.value === 'object' 
-                  ? JSON.stringify(selectedItem.value, null, 2) 
-                  : selectedItem.value}
-                </pre>
+                <div>Binary file - Download to view</div>
               )}
             </div>
           </div>

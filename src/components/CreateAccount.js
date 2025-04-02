@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from './BackButton';
 import wasabiStorage from '../services/WasabiStorage';
@@ -7,69 +7,96 @@ function CreateAccount() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('student');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [schools, setSchools] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState('');
+  const [role, setRole] = useState('student');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    loadSchools();
+  }, []);
+
+  const loadSchools = async () => {
+    try {
+      const schoolsData = await wasabiStorage.getData('schools.json') || [];
+      setSchools(schoolsData);
+      if (schoolsData.length > 0) {
+        setSelectedSchool(schoolsData[0].name);
+      }
+    } catch (error) {
+      console.error('Error loading schools:', error);
+      setError('Failed to load schools');
+    }
+  };
+
+  const handleCreateAccount = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     try {
-      // Connect to Wasabi
-      const isConnected = await wasabiStorage.testConnection();
-      if (!isConnected) {
-        setError('Failed to connect to storage');
-        return;
-      }
-
-      // Check if user already exists in any folder
-      try {
-        const pendingTeacher = await wasabiStorage.getData(wasabiStorage.getPendingTeacherPath(email));
-        const approvedTeacher = await wasabiStorage.getData(wasabiStorage.getTeacherPath(email));
-        const pendingStudent = await wasabiStorage.getData(wasabiStorage.getPendingStudentPath(email));
-        const approvedStudent = await wasabiStorage.getData(wasabiStorage.getStudentPath(email));
-
-        if (pendingTeacher || approvedTeacher || pendingStudent || approvedStudent) {
-          setError('Email already exists');
+      // Check if user already exists in pending folders
+      if (role === 'teacher') {
+        const pendingTeacher = await wasabiStorage.getData(`teacher-approval/${email}.json`);
+        if (pendingTeacher) {
+          setError('An account with this email is already pending approval');
           return;
         }
-      } catch (error) {
-        // User doesn't exist, continue
+      } else {
+        const pendingStudent = await wasabiStorage.getData(`student-approval/${email}.json`);
+        if (pendingStudent) {
+          setError('An account with this email is already pending approval');
+          return;
+        }
+      }
+
+      // Check if user exists in approved location
+      if (role === 'teacher') {
+        const approvedTeacher = await wasabiStorage.getData(`${selectedSchool}/teachers/${email}/info.json`);
+        if (approvedTeacher) {
+          setError('An account with this email already exists');
+          return;
+        }
+      } else {
+        const approvedStudent = await wasabiStorage.getData(`${selectedSchool}/students/${email}/info.json`);
+        if (approvedStudent) {
+          setError('An account with this email already exists');
+          return;
+        }
       }
 
       // Create user data
       const userData = {
-        name,
         email,
         password,
+        name,
         role,
+        school: selectedSchool,
         createdAt: new Date().toISOString()
       };
 
-      // Save user data to appropriate folder
+      // Save user data based on role
       if (role === 'teacher') {
-        const teacherData = {
-          ...userData,
-          approved: false,
-          classes: []
-        };
-        await wasabiStorage.saveData(wasabiStorage.getPendingTeacherPath(email), teacherData);
-        alert('Account created! Please wait for admin approval.');
-        navigate('/');
+        await wasabiStorage.saveData(`teacher-approval/${email}.json`, userData);
+        setSuccess('Account created successfully! Please wait for admin approval.');
       } else {
-        const studentData = {
-          ...userData,
-          approved: true,
-          classes: []
-        };
-        await wasabiStorage.saveData(wasabiStorage.getStudentPath(email), studentData);
-        alert('Account created! You can now log in and join classes.');
-        navigate('/');
+        // For students, save directly to approved location
+        await wasabiStorage.saveData(`${selectedSchool}/students/${email}/info.json`, userData);
+        setSuccess('Account created successfully! You can now log in.');
       }
+
+      // Clear form
+      setName('');
+      setEmail('');
+      setPassword('');
+      setRole('student');
+      setSelectedSchool(schools[0]?.name || '');
+      
     } catch (error) {
       console.error('Error creating account:', error);
-      setError('An error occurred while creating your account');
+      setError('Failed to create account. Please try again.');
     }
   };
 
@@ -84,20 +111,9 @@ function CreateAccount() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+      {success && <div className="success-message">{success}</div>}
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="name">Name</label>
-          <input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="Enter your name"
-          />
-        </div>
-
+      <form onSubmit={handleCreateAccount}>
         <div className="form-group">
           <label htmlFor="email">Email</label>
           <input
@@ -106,10 +122,9 @@ function CreateAccount() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="Enter your email"
+            style={{ color: '#ffffff' }}
           />
         </div>
-
         <div className="form-group">
           <label htmlFor="password">Password</label>
           <input
@@ -118,10 +133,20 @@ function CreateAccount() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            placeholder="Enter your password"
+            style={{ color: '#ffffff' }}
           />
         </div>
-
+        <div className="form-group">
+          <label htmlFor="name">Full Name</label>
+          <input
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            style={{ color: '#ffffff' }}
+          />
+        </div>
         <div className="form-group">
           <label htmlFor="role">Role</label>
           <select
@@ -129,16 +154,37 @@ function CreateAccount() {
             value={role}
             onChange={(e) => setRole(e.target.value)}
             required
+            style={{ color: '#ffffff' }}
           >
             <option value="student">Student</option>
             <option value="teacher">Teacher</option>
           </select>
         </div>
-
-        <button type="submit">Create Account</button>
+        {role === 'teacher' && (
+          <div className="form-group">
+            <label htmlFor="school">School</label>
+            <select
+              id="school"
+              value={selectedSchool}
+              onChange={(e) => setSelectedSchool(e.target.value)}
+              required
+              style={{ color: '#ffffff' }}
+            >
+              <option value="">Select a school</option>
+              {schools.map((school) => (
+                <option key={school.id} value={school.id}>
+                  {school.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <button type="submit" className="create-account-button">
+          Create Account
+        </button>
       </form>
 
-      <p>
+      <p className="login-link">
         Already have an account?{' '}
         <button 
           className="secondary-button"

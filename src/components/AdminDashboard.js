@@ -7,10 +7,12 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('schools');
   const [schools, setSchools] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [approvedTeachers, setApprovedTeachers] = useState({});  // Map of school -> teachers
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [newSchoolName, setNewSchoolName] = useState('');
   const [error, setError] = useState('');
   const [showCreateSchool, setShowCreateSchool] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,39 +21,60 @@ function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      // Connect to Wasabi
-      const isConnected = await wasabiStorage.testConnection();
-      if (!isConnected) {
-        setError('Failed to connect to storage');
-        return;
-      }
+      setLoading(true);
+      // Load schools and teachers in parallel
+      const [schoolsData, teachersData] = await Promise.all([
+        wasabiStorage.getData('schools.json') || [],
+        wasabiStorage.listObjects('teacher-approval/')
+      ]);
 
-      // Load schools
-      const schoolsData = await wasabiStorage.getData('schools.json') || [];
       setSchools(schoolsData);
 
-      // Load pending teachers from teacher-approval folder
-      const teachersData = await wasabiStorage.listObjects('teacher-approval/');
-      const pendingTeachers = [];
-      
-      for (const teacher of teachersData) {
-        if (teacher.Key.endsWith('.json')) {
-          const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
-          const teacherData = await wasabiStorage.getData(wasabiStorage.getPendingTeacherPath(email));
-          if (teacherData) {
-            pendingTeachers.push({
+      // Process pending teachers
+      const pendingTeachers = await Promise.all(
+        teachersData
+          .filter(teacher => teacher.Key.endsWith('.json'))
+          .map(async (teacher) => {
+            const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
+            const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
+            return {
               ...teacherData,
               email: email
-            });
-          }
-        }
-      }
-      
-      console.log('Found pending teachers:', pendingTeachers);
+            };
+          })
+      );
       setTeachers(pendingTeachers);
+
+      // Load approved teachers for each school in parallel
+      const approvedTeachersMap = {};
+      const schoolPromises = schoolsData.map(async (school) => {
+        const teachersList = await wasabiStorage.listObjects(`${school.name}/teachers/`);
+        const schoolTeachers = await Promise.all(
+          teachersList
+            .filter(teacher => teacher.Key.endsWith('info.json')) // Only get actual teacher info files
+            .map(async (teacher) => {
+              const email = teacher.Key.split('/')[2];
+              const teacherData = await wasabiStorage.getData(`${school.name}/teachers/${email}/info.json`);
+              if (teacherData) {
+                return {
+                  ...teacherData,
+                  email,
+                  school: school.name
+                };
+              }
+              return null;
+            })
+        );
+        approvedTeachersMap[school.name] = schoolTeachers.filter(t => t !== null);
+      });
+
+      await Promise.all(schoolPromises);
+      setApprovedTeachers(approvedTeachersMap);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
       setError('Failed to load data');
+      setLoading(false);
     }
   };
 
@@ -68,15 +91,42 @@ function AdminDashboard() {
         createdAt: new Date().toISOString()
       };
 
-      // Save to schools list
-      const updatedSchools = [...schools, newSchool];
-      await wasabiStorage.saveData('schools.json', updatedSchools);
+      // Create school folder structure
+      const schoolFolderKey = `${newSchoolName.trim()}/`;
+      const teachersFolderKey = `${newSchoolName.trim()}/teachers/`;
+      const studentsFolderKey = `${newSchoolName.trim()}/students/`;
+
+      // Create the folders in parallel
+      await Promise.all([
+        wasabiStorage.s3.putObject({
+          Bucket: wasabiStorage.bucket,
+          Key: schoolFolderKey,
+          Body: '',
+          ContentType: 'application/x-directory'
+        }).promise(),
+        wasabiStorage.s3.putObject({
+          Bucket: wasabiStorage.bucket,
+          Key: teachersFolderKey,
+          Body: '',
+          ContentType: 'application/x-directory'
+        }).promise(),
+        wasabiStorage.s3.putObject({
+          Bucket: wasabiStorage.bucket,
+          Key: studentsFolderKey,
+          Body: '',
+          ContentType: 'application/x-directory'
+        }).promise()
+      ]);
+
+      // Save school info and update schools list in parallel
+      await Promise.all([
+        wasabiStorage.saveData(`${newSchoolName.trim()}/info.json`, newSchool),
+        wasabiStorage.saveData('schools.json', [...schools, newSchool])
+      ]);
       
-      // Create school info file
-      await wasabiStorage.saveData(wasabiStorage.getSchoolPath(newSchool.name), newSchool);
-      
-      setSchools(updatedSchools);
+      setSchools([...schools, newSchool]);
       setNewSchoolName('');
+      setApprovedTeachers({ ...approvedTeachers, [newSchool.name]: [] });
       alert('School created successfully!');
     } catch (error) {
       console.error('Error creating school:', error);
@@ -86,83 +136,110 @@ function AdminDashboard() {
 
   const handleApproveTeacher = async (email) => {
     try {
-      // Get teacher data from approval folder
-      const teacherData = await wasabiStorage.getData(wasabiStorage.getPendingTeacherPath(email));
+      const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
       if (!teacherData) {
         setError('Teacher data not found');
         return;
       }
 
-      // Create teacher folder structure
-      const teacherFolderKey = `Skyline/teachers/${email}/`;
-      await wasabiStorage.s3.putObject({
-        Bucket: wasabiStorage.bucket,
-        Key: teacherFolderKey,
-        Body: '',
-        ContentType: 'application/x-directory'
-      }).promise();
+      const schoolName = teacherData.school;
 
-      // Create classes folder
-      const classesFolderKey = `Skyline/teachers/${email}/classes/`;
-      await wasabiStorage.s3.putObject({
-        Bucket: wasabiStorage.bucket,
-        Key: classesFolderKey,
-        Body: '',
-        ContentType: 'application/x-directory'
-      }).promise();
+      // Remove from pending list immediately for UI responsiveness
+      setTeachers(prev => prev.filter(t => t.email !== email));
 
-      // Move teacher data to approved folder
-      const approvedTeacherData = {
-        ...teacherData,
-        approved: true,
-        approvedAt: new Date().toISOString()
-      };
-      await wasabiStorage.saveData(wasabiStorage.getTeacherPath(email), approvedTeacherData);
+      // Create teacher folder structure and move data in parallel
+      await Promise.all([
+        wasabiStorage.s3.putObject({
+          Bucket: wasabiStorage.bucket,
+          Key: `${schoolName}/teachers/${email}/`,
+          Body: '',
+          ContentType: 'application/x-directory'
+        }).promise(),
+        wasabiStorage.s3.putObject({
+          Bucket: wasabiStorage.bucket,
+          Key: `${schoolName}/teachers/${email}/classes/`,
+          Body: '',
+          ContentType: 'application/x-directory'
+        }).promise(),
+        wasabiStorage.saveData(`${schoolName}/teachers/${email}/info.json`, {
+          ...teacherData,
+          approved: true,
+          approvedAt: new Date().toISOString()
+        }),
+        wasabiStorage.deleteData(`teacher-approval/${email}.json`)
+      ]);
 
-      // Delete from pending folder
-      await wasabiStorage.deleteData(wasabiStorage.getPendingTeacherPath(email));
-
-      // Refresh data
-      await loadData();
+      // Update approved teachers list
+      setApprovedTeachers(prev => ({
+        ...prev,
+        [schoolName]: [
+          ...(prev[schoolName] || []),
+          {
+            ...teacherData,
+            email,
+            school: schoolName
+          }
+        ]
+      }));
     } catch (error) {
       console.error('Error approving teacher:', error);
       setError('Failed to approve teacher');
+      // Revert the UI change if the operation failed
+      loadData();
     }
   };
 
   const handleDenyTeacher = async (email) => {
     try {
-      // Delete from pending folder
-      await wasabiStorage.deleteData(wasabiStorage.getPendingTeacherPath(email));
-      
-      // Refresh data
-      await loadData();
+      // Remove from pending list immediately for UI responsiveness
+      setTeachers(prev => prev.filter(t => t.email !== email));
+      await wasabiStorage.deleteData(`teacher-approval/${email}.json`);
     } catch (error) {
       console.error('Error denying teacher:', error);
       setError('Failed to deny teacher');
+      // Revert the UI change if the operation failed
+      loadData();
     }
   };
 
   const removeSchool = async (schoolId) => {
     try {
-      // Filter out the school to be removed
       const updatedSchools = schools.filter(school => school.id !== schoolId);
-      
-      // Save updated schools list
       await wasabiStorage.saveData('schools.json', updatedSchools);
-      
-      // Update state
       setSchools(updatedSchools);
+      const newApprovedTeachers = { ...approvedTeachers };
+      delete newApprovedTeachers[schools.find(s => s.id === schoolId).name];
+      setApprovedTeachers(newApprovedTeachers);
     } catch (error) {
       console.error('Error removing school:', error);
       setError('Failed to remove school');
     }
   };
 
+  const removeTeacher = async (schoolName, teacherEmail) => {
+    try {
+      // Remove teacher's data
+      await wasabiStorage.deleteData(`${schoolName}/teachers/${teacherEmail}/info.json`);
+      
+      // Update state
+      setApprovedTeachers(prev => ({
+        ...prev,
+        [schoolName]: prev[schoolName].filter(t => t.email !== teacherEmail)
+      }));
+    } catch (error) {
+      console.error('Error removing teacher:', error);
+      setError('Failed to remove teacher');
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Loading admin dashboard...</div>;
+  }
+
   return (
     <div className="admin-dashboard" style={{ 
       padding: '20px',
-      maxWidth: '1200px',
+      maxWidth: '1400px',
       margin: '0 auto',
       minHeight: '100vh',
       backgroundColor: '#1a1a1a',
@@ -179,175 +256,192 @@ function AdminDashboard() {
         marginBottom: '1rem' 
       }}>{error}</div>}
 
-      <div style={{ marginBottom: '3rem' }}>
-        <h3 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>Schools</h3>
+      <div className="schools-section">
+        <h3>Schools</h3>
         {showCreateSchool ? (
-          <div style={{
-            backgroundColor: '#2d2d2d',
-            padding: '20px',
-            borderRadius: '8px',
-            marginBottom: '1.5rem'
-          }}>
+          <div className="create-school-form">
             <input
               type="text"
               value={newSchoolName}
               onChange={(e) => setNewSchoolName(e.target.value)}
               placeholder="Enter school name"
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginBottom: '1rem',
-                border: '1px solid #444',
-                borderRadius: '6px',
-                backgroundColor: '#1a1a1a',
-                color: 'white',
-                fontSize: '1rem'
-              }}
             />
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={handleCreateSchool}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#2196f3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '1rem'
-                }}
-              >
-                Create School
-              </button>
-              <button 
-                onClick={() => setShowCreateSchool(false)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '1rem'
-                }}
-              >
+            <div className="form-actions">
+              <button onClick={handleCreateSchool}>Create School</button>
+              <button onClick={() => setShowCreateSchool(false)} className="secondary-button">
                 Cancel
               </button>
             </div>
           </div>
         ) : (
-          <button 
-            onClick={() => setShowCreateSchool(true)}
-            style={{
-              backgroundColor: '#2196f3',
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              cursor: 'pointer',
-              marginBottom: '1.5rem',
-              width: '100%',
-              maxWidth: '300px'
-            }}
-          >
+          <button onClick={() => setShowCreateSchool(true)} className="create-school-button">
             Create New School
           </button>
         )}
         
-        <div style={{
+        <div className="schools-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '20px'
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '20px',
+          marginTop: '20px'
         }}>
           {schools.map(school => (
-            <div key={school.id} style={{
+            <div key={school.id} className="school-box" style={{
               backgroundColor: '#2d2d2d',
-              borderRadius: '10px',
+              borderRadius: '8px',
               padding: '20px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              transition: 'transform 0.2s, box-shadow 0.2s'
-            }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: '500', color: 'white' }}>
-                {school.name}
+              cursor: 'pointer',
+              transition: 'transform 0.2s, background-color 0.2s',
+              ':hover': {
+                transform: 'translateY(-2px)',
+                backgroundColor: '#353535'
+              }
+            }} onClick={() => setSelectedSchool(selectedSchool?.id === school.id ? null : school)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0 }}>{school.name}</h4>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSchool(school.id);
+                  }}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    fontSize: '14px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                    minWidth: '24px'
+                  }}
+                >
+                  ×
+                </button>
               </div>
-              <button 
-                onClick={() => removeSchool(school.id)}
-                style={{ 
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '6px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2rem'
-                }}
-              >
-                ×
-              </button>
+              <div style={{ marginTop: '10px', color: '#888' }}>
+                Teachers: {approvedTeachers[school.name]?.length || 0}
+              </div>
+              {selectedSchool?.id === school.id && (
+                <div style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
+                  <h5 style={{ margin: '0 0 10px 0' }}>Teachers:</h5>
+                  {approvedTeachers[school.name]?.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {approvedTeachers[school.name].map(teacher => (
+                        <div key={teacher.email} style={{ 
+                          backgroundColor: '#1a1a1a',
+                          padding: '12px',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <div>
+                            <div>{teacher.name}</div>
+                            <div style={{ color: '#888', fontSize: '12px' }}>{teacher.email}</div>
+                          </div>
+                          <button
+                            onClick={() => removeTeacher(school.name, teacher.email)}
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              fontSize: '14px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              minWidth: '24px'
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#888' }}>No teachers yet</div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ marginBottom: '3rem' }}>
-        <h3 style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>Pending Teacher Approvals</h3>
-        {teachers.length === 0 ? (
-          <p>No pending teacher approvals</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '20px' }}>
+      {teachers.length > 0 && (
+        <div className="teachers-section" style={{ marginTop: '40px' }}>
+          <h3>Pending Teacher Approvals</h3>
+          <div className="teachers-list" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+            gap: '20px'
+          }}>
             {teachers.map(teacher => (
-              <div key={teacher.email} style={{
+              <div key={teacher.email} className="teacher-item" style={{
                 backgroundColor: '#2d2d2d',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 padding: '20px',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                flexDirection: 'column',
+                gap: '10px'
               }}>
-                <div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '500', color: 'white', marginBottom: '4px' }}>
-                    {teacher.name}
-                  </div>
-                  <div style={{ color: '#888', fontSize: '0.9rem' }}>
-                    {teacher.email}
-                  </div>
+                <div className="teacher-info">
+                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{teacher.name}</div>
+                  <div style={{ color: '#888' }}>{teacher.email}</div>
+                  <div style={{ color: '#888' }}>School: {teacher.school}</div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="teacher-actions" style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '10px',
+                  marginTop: 'auto',
+                  maxWidth: '400px',
+                  margin: '10px auto 0'
+                }}>
                   <button 
+                    className="approve-button"
                     onClick={() => handleApproveTeacher(teacher.email)}
                     style={{
-                      padding: '8px 20px',
+                      height: '36px',
                       backgroundColor: '#28a745',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      minWidth: '100px'
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   >
                     Approve
                   </button>
                   <button 
+                    className="deny-button"
                     onClick={() => handleDenyTeacher(teacher.email)}
                     style={{
-                      padding: '8px 20px',
+                      height: '36px',
                       backgroundColor: '#dc3545',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      minWidth: '100px'
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   >
                     Deny
@@ -356,8 +450,8 @@ function AdminDashboard() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

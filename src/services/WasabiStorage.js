@@ -60,8 +60,8 @@ class WasabiStorage {
   }
 
   // Path helpers
-  getTeacherPath(email) {
-    return `Skyline/teachers/${email}/${email}.json`;
+  getTeacherPath(schoolName, email) {
+    return `${schoolName}/teachers/${email}/info.json`;
   }
 
   getPendingTeacherPath(email) {
@@ -72,40 +72,44 @@ class WasabiStorage {
     return `student-approval/${email}.json`;
   }
 
-  getStudentPath(email) {
-    return `Skyline/students/${email}.json`;
+  getStudentPath(schoolName, email) {
+    return `${schoolName}/students/${email}/info.json`;
   }
 
-  getTeacherClassesPath(email) {
-    return `Skyline/teachers/${email}/classes/`;
+  getTeacherClassesPath(schoolName, email) {
+    return `${schoolName}/teachers/${email}/classes/`;
   }
 
-  getClassPath(teacherEmail, classCode) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/info.json`;
+  getClassPath(schoolName, teacherEmail, classCode) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/info.json`;
   }
 
-  getRecordingsPath(teacherEmail, classCode) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/recordings/`;
+  getRecordingsPath(schoolName, teacherEmail, classCode) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/recordings/`;
   }
 
-  getRecordingPath(teacherEmail, classCode, recordingId) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/recordings/${recordingId}.json`;
+  getRecordingPath(schoolName, teacherEmail, classCode, recordingId) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/recordings/${recordingId}.json`;
   }
 
-  getSummariesPath(teacherEmail, classCode) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/summaries/`;
+  getSummariesPath(schoolName, teacherEmail, classCode) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/summaries/`;
   }
 
-  getSummaryPath(teacherEmail, classCode, summaryId) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/summaries/${summaryId}.json`;
+  getSummaryPath(schoolName, teacherEmail, classCode, summaryId) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/summaries/${summaryId}.json`;
   }
 
-  getClassJoinRequestPath(teacherEmail, classCode, studentEmail) {
-    return `Skyline/teachers/${teacherEmail}/classes/${classCode}/join-requests/${studentEmail}.json`;
+  getClassJoinRequestPath(schoolName, teacherEmail, classCode, studentEmail) {
+    return `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/join-requests/${studentEmail}.json`;
   }
 
   getSchoolPath(schoolName) {
-    return `schools/${schoolName}.json`;
+    return `${schoolName}/info.json`;
+  }
+
+  getSchoolsListPath() {
+    return 'schools.json';
   }
 
   // Test the Wasabi connection

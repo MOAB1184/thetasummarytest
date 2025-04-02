@@ -11,6 +11,7 @@ function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
   const [summaries, setSummaries] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const navigate = useNavigate();
   const studentEmail = sessionStorage.getItem('userEmail');
 
@@ -20,7 +21,13 @@ function StudentDashboard() {
 
   const loadStudentData = async () => {
     try {
-      const studentData = await wasabiStorage.getData(wasabiStorage.getStudentPath(studentEmail));
+      const schoolName = sessionStorage.getItem('userSchool');
+      if (!schoolName) {
+        setError('School information not found');
+        return;
+      }
+
+      const studentData = await wasabiStorage.getData(wasabiStorage.getStudentPath(schoolName, studentEmail));
       if (!studentData) {
         setError('Student data not found');
         return;
@@ -37,7 +44,7 @@ function StudentDashboard() {
         }
 
         const classData = await wasabiStorage.getData(
-          wasabiStorage.getClassPath(classInfo.teacherEmail, classInfo.code)
+          wasabiStorage.getClassPath(schoolName, classInfo.teacherEmail, classInfo.code)
         );
         if (classData) {
           enrolledClasses.push(classData);
@@ -45,7 +52,36 @@ function StudentDashboard() {
         }
       }
 
+      // Load pending requests
+      const pendingClasses = [];
+      const teachersData = await wasabiStorage.listObjects(`${schoolName}/teachers/`);
+      
+      for (const teacher of teachersData) {
+        if (!teacher.Key.endsWith('/')) continue;
+        const teacherEmail = teacher.Key.split('/')[2];
+        const classesPath = wasabiStorage.getTeacherClassesPath(schoolName, teacherEmail);
+        const classes = await wasabiStorage.listObjects(classesPath);
+        
+        for (const classObj of classes) {
+          if (classObj.Key.endsWith('info.json')) {
+            const classData = await wasabiStorage.getData(classObj.Key);
+            if (classData) {
+              const requestPath = wasabiStorage.getClassJoinRequestPath(schoolName, teacherEmail, classData.code, studentEmail);
+              const request = await wasabiStorage.getData(requestPath);
+              if (request && request.status === 'pending') {
+                pendingClasses.push({
+                  ...classData,
+                  teacherEmail,
+                  requestTimestamp: request.timestamp
+                });
+              }
+            }
+          }
+        }
+      }
+
       setClasses(enrolledClasses);
+      setPendingRequests(pendingClasses);
       setLoading(false);
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -56,11 +92,27 @@ function StudentDashboard() {
 
   const loadSummaries = async (teacherEmail, classCode) => {
     try {
-        const summaries = await wasabiStorage.getSummaries(teacherEmail, classCode);
-        setSummaries(summaries);
+      const schoolName = sessionStorage.getItem('userSchool');
+      if (!schoolName) {
+        setError('School information not found');
+        return;
+      }
+
+      const summariesPath = wasabiStorage.getSummariesPath(schoolName, teacherEmail, classCode);
+      const summaries = await wasabiStorage.listObjects(summariesPath);
+      const summariesData = await Promise.all(
+        summaries.map(async (summary) => {
+          const content = await wasabiStorage.getData(summary.Key);
+          return {
+            ...content,
+            path: summary.Key
+          };
+        })
+      );
+      setSummaries(summariesData);
     } catch (error) {
-        console.error('Error loading summaries:', error);
-        setError('Failed to load class summaries');
+      console.error('Error loading summaries:', error);
+      setError('Failed to load class summaries');
     }
   };
 
@@ -82,17 +134,23 @@ function StudentDashboard() {
 
     try {
       setError('');
+      const schoolName = sessionStorage.getItem('userSchool');
+      if (!schoolName) {
+        setError('School information not found');
+        return;
+      }
+
       console.log('Searching for class code:', classCode.trim());
       
       // Check if student is already enrolled in this class
-      const studentData = await wasabiStorage.getData(wasabiStorage.getStudentPath(studentEmail));
+      const studentData = await wasabiStorage.getData(wasabiStorage.getStudentPath(schoolName, studentEmail));
       if (studentData.classes && studentData.classes.some(c => c.code === classCode.trim().toUpperCase())) {
         setError('You are already enrolled in this class');
         return;
       }
 
       // Find the class with this code
-      const teachersData = await wasabiStorage.listObjects('Skyline/teachers/');
+      const teachersData = await wasabiStorage.listObjects(`${schoolName}/teachers/`);
       let foundClass = null;
       let teacherEmail = null;
 
@@ -101,7 +159,7 @@ function StudentDashboard() {
       for (const teacher of teachersData) {
         if (!teacher.Key.endsWith('/')) continue;
         const email = teacher.Key.split('/')[2];
-        const classesPath = wasabiStorage.getTeacherClassesPath(email);
+        const classesPath = wasabiStorage.getTeacherClassesPath(schoolName, email);
         console.log('Checking classes for teacher:', email);
         const classes = await wasabiStorage.listObjects(classesPath);
         
@@ -127,7 +185,7 @@ function StudentDashboard() {
       }
 
       // Check if there's already a pending request
-      const requestPath = wasabiStorage.getClassJoinRequestPath(teacherEmail, classCode.trim().toUpperCase(), studentEmail);
+      const requestPath = wasabiStorage.getClassJoinRequestPath(schoolName, teacherEmail, classCode.trim().toUpperCase(), studentEmail);
       const existingRequest = await wasabiStorage.getData(requestPath);
       if (existingRequest) {
         setError('You have already sent a request to join this class');
@@ -166,108 +224,139 @@ function StudentDashboard() {
       minHeight: '100vh',
       backgroundColor: '#121212'
     }}>
-      <div className="dashboard-header" style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '32px',
-        padding: '16px',
-        backgroundColor: '#1a1a1a',
-        borderRadius: '8px'
-      }}>
-        <BackButton destination="/" />
-        <h2 style={{
-          margin: 0,
-          fontSize: '28px',
-          color: '#fff'
-        }}>Student Dashboard</h2>
-        <button 
-          className="logout-button" 
-          onClick={() => {
-            sessionStorage.removeItem('userEmail');
-            sessionStorage.removeItem('userRole');
-            navigate('/');
-          }}
-          style={{
-            padding: '8px 16px',
-            fontSize: '16px',
-            backgroundColor: '#dc3545',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-            ':hover': {
-              backgroundColor: '#c82333'
-            }
-          }}
-        >
-          Logout
-        </button>
-      </div>
-
-      {error && <div className="error-message" style={{
-        backgroundColor: '#dc3545',
-        color: '#fff',
-        padding: '12px 16px',
-        borderRadius: '4px',
-        marginBottom: '24px'
-      }}>{error}</div>}
-
-      <div className="dashboard-content" style={{
-        backgroundColor: '#1a1a1a',
-        borderRadius: '8px',
-        padding: '24px'
-      }}>
-        {selectedClass ? (
-          <div className="class-view">
-            <div className="class-header" style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '24px',
-              padding: '16px',
-              backgroundColor: '#1a1a1a',
-              borderRadius: '8px',
-              border: '1px solid #333'
+      {selectedClass ? (
+        <div className="class-view" style={{
+          display: 'flex',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#121212'
+        }}>
+          <div style={{
+            width: '600px',
+            padding: '24px'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              marginBottom: '40px'
             }}>
               <button 
-                onClick={handleBackToClasses} 
-                className="back-button"
+                onClick={() => setSelectedClass(null)}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#fff',
+                  color: '#007bff',
                   cursor: 'pointer',
                   fontSize: '16px',
-                  padding: '8px 16px',
-                  marginRight: '16px',
                   display: 'flex',
                   alignItems: 'center',
-                  borderRadius: '4px',
-                  backgroundColor: '#333'
+                  padding: 0
                 }}
               >
                 ← Back to Classes
               </button>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', color: '#fff' }}>{selectedClass.name}</h3>
-                <div className="class-info" style={{ color: '#888' }}>
-                  <span>Teacher: {selectedClass.teacherEmail}</span>
-                </div>
+              <div style={{ color: '#888' }}>
+                Class: period 1
               </div>
             </div>
 
-            <div className="summaries-section" style={{ 
-              padding: '24px',
-              border: '1px solid #333',
-              borderRadius: '8px'
+            <div style={{ 
+              textAlign: 'center',
+              marginBottom: '40px'
             }}>
-              <h4 style={{ 
-                fontSize: '20px', 
-                marginBottom: '16px',
+              <div style={{
+                display: 'inline-block',
+                borderBottom: '2px solid #007bff',
+                padding: '10px 0'
+              }}>
+                <span style={{
+                  color: '#fff',
+                  fontSize: '16px'
+                }}>
+                  Summaries
+                </span>
+              </div>
+            </div>
+
+            <div style={{ 
+              backgroundColor: '#1a1a1a',
+              borderRadius: '8px',
+              padding: '40px 0',
+              textAlign: 'center'
+            }}>
+              <div style={{ 
+                color: '#888'
+              }}>
+                No recordings yet
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="dashboard-header" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '32px',
+            padding: '16px 32px',
+            backgroundColor: '#1a1a1a',
+            borderRadius: '8px',
+            gap: '48px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <BackButton destination="/" />
+              <h2 style={{
+                margin: 0,
+                fontSize: '28px',
+                color: '#fff',
+                whiteSpace: 'nowrap'
+              }}>Student Dashboard</h2>
+            </div>
+            <button 
+              className="logout-button" 
+              onClick={() => {
+                sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('userRole');
+                navigate('/');
+              }}
+              style={{
+                padding: '8px 16px',
+                fontSize: '16px',
+                backgroundColor: '#dc3545',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+
+          {error && <div className="error-message" style={{
+            backgroundColor: '#dc3545',
+            color: '#fff',
+            padding: '12px 16px',
+            borderRadius: '4px',
+            marginBottom: '24px'
+          }}>{error}</div>}
+
+          <div className="dashboard-content" style={{
+            backgroundColor: '#1a1a1a',
+            borderRadius: '8px',
+            padding: '24px'
+          }}>
+            <div className="classes-section">
+              <h3 style={{ 
+                fontSize: '24px',
+                marginBottom: '24px',
                 color: '#fff'
-              }}>Class Summaries</h4>
-              {summaries.length === 0 ? (
+              }}>My Classes</h3>
+              
+              {classes.length === 0 ? (
                 <p style={{ 
                   color: '#888',
                   textAlign: 'center',
@@ -275,174 +364,120 @@ function StudentDashboard() {
                   backgroundColor: '#1a1a1a',
                   borderRadius: '8px',
                   margin: '16px 0'
-                }}>No summaries available for this class.</p>
+                }}>You haven't joined any classes yet.</p>
               ) : (
-                <div className="summaries-list">
-                  {summaries.map(summary => (
+                <div className="classes-list" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '20px'
+                }}>
+                  {classes.map(cls => (
                     <div 
-                      key={summary.id} 
-                      className="summary-item"
-                      style={{
-                        backgroundColor: '#1a1a1a',
+                      key={cls.code} 
+                      className="class-item"
+                      onClick={() => handleClassClick(cls)}
+                      style={{ 
+                        cursor: 'pointer',
+                        backgroundColor: '#2d2d2d',
                         borderRadius: '8px',
-                        padding: '16px',
-                        marginBottom: '16px',
-                        border: '1px solid #333'
+                        padding: '20px',
+                        transition: 'transform 0.2s, background-color 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          backgroundColor: '#353535'
+                        }
                       }}
                     >
-                      <div className="summary-header" style={{
-                        marginBottom: '12px',
-                        paddingBottom: '8px',
-                        borderBottom: '1px solid #333'
-                      }}>
-                        <span className="summary-date" style={{ color: '#888' }}>
-                          {new Date(summary.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="summary-content" style={{
-                        color: '#fff',
-                        lineHeight: '1.5',
-                        fontSize: '16px'
-                      }}>
-                        {summary.content}
+                      <h4 style={{ 
+                        margin: '0 0 8px 0',
+                        fontSize: '20px',
+                        color: '#fff'
+                      }}>{cls.name}</h4>
+                      <div style={{ color: '#888' }}>
+                        Teacher: {cls.teacherEmail}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        ) : (
-          <div className="classes-section">
-            <h3 style={{ 
-              fontSize: '24px',
-              marginBottom: '24px',
-              color: '#fff'
-            }}>My Classes</h3>
-            {classes.length === 0 ? (
-              <p style={{ 
-                color: '#888',
-                textAlign: 'center',
-                padding: '32px',
-                backgroundColor: '#1a1a1a',
-                borderRadius: '8px',
-                margin: '16px 0'
-              }}>You haven't joined any classes yet.</p>
-            ) : (
-              <div className="classes-list">
-                {classes.map(cls => (
-                  <div 
-                    key={cls.code} 
-                    className="class-item"
-                    onClick={() => handleClassClick(cls)}
-                    style={{ 
-                      cursor: 'pointer',
-                      backgroundColor: '#1a1a1a',
-                      borderRadius: '8px',
-                      padding: '16px',
-                      marginBottom: '16px',
-                      transition: 'transform 0.2s, background-color 0.2s',
-                      ':hover': {
-                        transform: 'translateY(-2px)',
-                        backgroundColor: '#252525'
-                      }
-                    }}
-                  >
-                    <h4 style={{ 
-                      margin: '0 0 8px 0',
-                      fontSize: '20px',
-                      color: '#fff'
-                    }}>{cls.name}</h4>
-                    <div className="class-info" style={{ color: '#888' }}>
-                      <span>Teacher: {cls.teacherEmail}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {showJoinClass ? (
-              <div className="join-class-form" style={{
-                backgroundColor: '#1a1a1a',
-                borderRadius: '8px',
-                padding: '16px',
-                marginTop: '24px'
-              }}>
-                <input
-                  type="text"
-                  value={classCode}
-                  onChange={(e) => setClassCode(e.target.value)}
-                  placeholder="Enter class code"
+              {showJoinClass ? (
+                <div className="join-class-form" style={{
+                  backgroundColor: '#2d2d2d',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginTop: '24px'
+                }}>
+                  <input
+                    type="text"
+                    value={classCode}
+                    onChange={(e) => setClassCode(e.target.value)}
+                    placeholder="Enter class code"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '16px',
+                      backgroundColor: '#1a1a1a',
+                      border: '1px solid #444',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      marginBottom: '16px'
+                    }}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px'
+                  }}>
+                    <button 
+                      onClick={handleJoinClass}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '16px',
+                        backgroundColor: '#007bff',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >Join Class</button>
+                    <button 
+                      onClick={() => setShowJoinClass(false)}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '16px',
+                        backgroundColor: '#444',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowJoinClass(true)}
                   style={{
                     width: '100%',
-                    padding: '8px 12px',
+                    padding: '12px',
                     fontSize: '16px',
-                    backgroundColor: '#333',
-                    border: 'none',
-                    borderRadius: '4px',
+                    backgroundColor: '#007bff',
                     color: '#fff',
-                    marginBottom: '16px'
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    marginTop: '24px'
                   }}
-                />
-                <div className="form-actions" style={{
-                  display: 'flex',
-                  gap: '12px'
-                }}>
-                  <button 
-                    onClick={handleJoinClass}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '16px',
-                      backgroundColor: '#007bff',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >Join Class</button>
-                  <button 
-                    onClick={() => setShowJoinClass(false)} 
-                    className="secondary-button"
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '16px',
-                      backgroundColor: '#333',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button 
-                onClick={() => setShowJoinClass(true)} 
-                className="join-class-button"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '16px',
-                  backgroundColor: '#007bff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginTop: '24px',
-                  transition: 'background-color 0.2s',
-                  ':hover': {
-                    backgroundColor: '#0056b3'
-                  }
-                }}
-              >
-                Join New Class
-              </button>
-            )}
+                >
+                  Join New Class
+                </button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
