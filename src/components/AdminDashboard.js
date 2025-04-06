@@ -39,8 +39,8 @@ function AdminDashboard() {
         teachersData
           .filter(teacher => teacher.Key.endsWith('.json'))
           .map(async (teacher) => {
-            const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
-            const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
+          const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
+          const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
             return {
               name: teacherData.name,
               email: email,
@@ -58,12 +58,12 @@ function AdminDashboard() {
           teachersList
             .filter(teacher => teacher.Key.endsWith('info.json')) // Only get actual teacher info files
             .map(async (teacher) => {
-              const email = teacher.Key.split('/')[2];
+          const email = teacher.Key.split('/')[2];
               const teacherData = await wasabiStorage.getData(`${school.name}/teachers/${email}/info.json`);
               if (teacherData) {
                 return {
-                  ...teacherData,
-                  email,
+                      ...teacherData,
+                      email,
                   school: school.name
                 };
               }
@@ -613,29 +613,29 @@ function AdminDashboard() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="admin-content">
-        <div className="schools-section">
-          <h3>Schools</h3>
-          {showCreateSchool ? (
-            <div className="create-school-form">
-              <input
-                type="text"
-                value={newSchoolName}
-                onChange={(e) => setNewSchoolName(e.target.value)}
-                placeholder="Enter school name"
-              />
-              <div className="form-actions">
-                <button onClick={handleCreateSchool}>Create School</button>
-                <button onClick={() => setShowCreateSchool(false)} className="secondary-button">
-                  Cancel
-                </button>
-              </div>
+      <div className="schools-section">
+        <h3>Schools</h3>
+        {showCreateSchool ? (
+          <div className="create-school-form">
+            <input
+              type="text"
+              value={newSchoolName}
+              onChange={(e) => setNewSchoolName(e.target.value)}
+              placeholder="Enter school name"
+            />
+            <div className="form-actions">
+              <button onClick={handleCreateSchool}>Create School</button>
+              <button onClick={() => setShowCreateSchool(false)} className="secondary-button">
+                Cancel
+              </button>
             </div>
-          ) : (
-            <button onClick={() => setShowCreateSchool(true)} className="create-school-button">
-              Create New School
-            </button>
-          )}
-          
+          </div>
+        ) : (
+          <button onClick={() => setShowCreateSchool(true)} className="create-school-button">
+            Create New School
+          </button>
+        )}
+        
           <div className="schools-grid">
             {schools.map((school) => (
               <div 
@@ -647,23 +647,23 @@ function AdminDashboard() {
                 <p className="teacher-count">
                   {approvedTeachers[school.name]?.length || 0} Teachers
                 </p>
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
+      </div>
 
         {selectedSchool && (
-          <div className="teachers-section">
+        <div className="teachers-section">
             <h3>{selectedSchool.name} Teachers</h3>
-            <div className="teachers-list">
+          <div className="teachers-list">
               {approvedTeachers[selectedSchool.name]?.map((teacher) => (
                 <div key={teacher.email}>
                   <div className="teacher-item">
                     <div className="teacher-info" onClick={() => handleTeacherClick(teacher)} style={{ cursor: 'pointer' }}>
                       <span className="teacher-name">{teacher.name}</span>
                       <span className="teacher-email">{teacher.email}</span>
-                    </div>
-                    <div className="teacher-actions">
+                </div>
+                <div className="teacher-actions">
                       <button 
                         className="delete-button"
                         onClick={(e) => {
@@ -750,24 +750,24 @@ function AdminDashboard() {
                     <span className="teacher-school" style={{ color: '#888', fontSize: '14px' }}>School: {teacher.school}</span>
                   </div>
                   <div className="approval-actions">
-                    <button 
-                      className="approve-button"
-                      onClick={() => handleApproveTeacher(teacher.email)}
-                    >
-                      Approve
-                    </button>
-                    <button 
-                      className="deny-button"
-                      onClick={() => handleDenyTeacher(teacher.email)}
-                    >
-                      Deny
-                    </button>
-                  </div>
+                  <button 
+                    className="approve-button"
+                    onClick={() => handleApproveTeacher(teacher.email)}
+                  >
+                    Approve
+                  </button>
+                  <button 
+                    className="deny-button"
+                    onClick={() => handleDenyTeacher(teacher.email)}
+                  >
+                    Deny
+                  </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
       </div>
     </div>
   );
