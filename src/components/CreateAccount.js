@@ -31,72 +31,77 @@ function CreateAccount() {
     }
   };
 
-  const handleCreateAccount = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
 
     try {
-      // Check if user already exists in pending folders
-      if (role === 'teacher') {
-        const pendingTeacher = await wasabiStorage.getData(`teacher-approval/${email}.json`);
-        if (pendingTeacher) {
-          setError('An account with this email is already pending approval');
+      // Connect to Wasabi
+      const isConnected = await wasabiStorage.testConnection();
+      if (!isConnected) {
+        setError('Failed to connect to storage');
+        return;
+      }
+
+      // Check if user already exists in any school
+      const schools = await wasabiStorage.getData('schools.json') || [];
+      for (const school of schools) {
+        // Check for existing teacher
+        const existingTeacher = await wasabiStorage.getData(`${school.name}/teachers/${email}/info.json`);
+        if (existingTeacher) {
+          setError('This email is already registered as a teacher in another school');
           return;
         }
-      } else {
-        const pendingStudent = await wasabiStorage.getData(`student-approval/${email}.json`);
-        if (pendingStudent) {
-          setError('An account with this email is already pending approval');
+
+        // Check for existing student
+        const existingStudent = await wasabiStorage.getData(`${school.name}/students/${email}/info.json`);
+        if (existingStudent) {
+          setError('This email is already registered as a student in another school');
           return;
         }
       }
 
-      // Check if user exists in approved location
-      if (role === 'teacher') {
-        const approvedTeacher = await wasabiStorage.getData(`${selectedSchool}/teachers/${email}/info.json`);
-        if (approvedTeacher) {
-          setError('An account with this email already exists');
-          return;
-        }
-      } else {
-        const approvedStudent = await wasabiStorage.getData(`${selectedSchool}/students/${email}/info.json`);
-        if (approvedStudent) {
-          setError('An account with this email already exists');
-          return;
-        }
+      // Check pending approvals
+      const pendingTeacher = await wasabiStorage.getData(wasabiStorage.getPendingTeacherPath(email));
+      const pendingStudent = await wasabiStorage.getData(wasabiStorage.getPendingStudentPath(email));
+
+      if (pendingTeacher || pendingStudent) {
+        setError('This email is already pending approval');
+        return;
       }
 
       // Create user data
       const userData = {
+        name,
         email,
         password,
-        name,
         role,
-        school: selectedSchool,
         createdAt: new Date().toISOString()
       };
 
-      // Save user data based on role
+      // Save user data to appropriate folder
       if (role === 'teacher') {
-        await wasabiStorage.saveData(`teacher-approval/${email}.json`, userData);
-        setSuccess('Account created successfully! Please wait for admin approval.');
+        const teacherData = {
+          ...userData,
+          approved: false,
+          classes: []
+        };
+        await wasabiStorage.saveData(wasabiStorage.getPendingTeacherPath(email), teacherData);
+        alert('Account created! Please wait for admin approval.');
+        navigate('/');
       } else {
-        // For students, save directly to approved location
-        await wasabiStorage.saveData(`${selectedSchool}/students/${email}/info.json`, userData);
-        setSuccess('Account created successfully! You can now log in.');
+        const studentData = {
+          ...userData,
+          approved: true,
+          classes: []
+        };
+        await wasabiStorage.saveData(wasabiStorage.getStudentPath(email), studentData);
+        alert('Account created! You can now log in and join classes.');
+        navigate('/');
       }
-
-      // Clear form
-      setName('');
-      setEmail('');
-      setPassword('');
-      setRole('student');
-      setSelectedSchool(schools[0]?.name || '');
-      
     } catch (error) {
       console.error('Error creating account:', error);
-      setError('Failed to create account. Please try again.');
+      setError('An error occurred while creating your account');
     }
   };
 
@@ -113,7 +118,7 @@ function CreateAccount() {
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      <form onSubmit={handleCreateAccount}>
+      <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="email">Email</label>
           <input
