@@ -81,9 +81,15 @@ function CreateAccount() {
 
       // Save user data to appropriate folder
       if (role === 'teacher') {
+        if (!selectedSchool) {
+          setError('Please select a school for teacher accounts');
+          return;
+        }
+
         const teacherData = {
           ...userData,
           approved: false,
+          school: selectedSchool,
           classes: []
         };
         await wasabiStorage.saveData(wasabiStorage.getPendingTeacherPath(email), teacherData);
@@ -95,7 +101,7 @@ function CreateAccount() {
           approved: true,
           classes: []
         };
-        await wasabiStorage.saveData(wasabiStorage.getStudentPath(email), studentData);
+        await wasabiStorage.saveData(wasabiStorage.getStudentPath(selectedSchool, email), studentData);
         alert('Account created! You can now log in and join classes.');
         navigate('/');
       }

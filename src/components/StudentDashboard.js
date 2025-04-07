@@ -98,18 +98,8 @@ function StudentDashboard() {
         return;
       }
 
-      const summariesPath = wasabiStorage.getSummariesPath(schoolName, teacherEmail, classCode);
-      const summaries = await wasabiStorage.listObjects(summariesPath);
-      const summariesData = await Promise.all(
-        summaries.map(async (summary) => {
-          const content = await wasabiStorage.getData(summary.Key);
-          return {
-            ...content,
-            path: summary.Key
-          };
-        })
-      );
-      setSummaries(summariesData);
+      const summaries = await wasabiStorage.getSummaries(teacherEmail, classCode);
+      setSummaries(summaries);
     } catch (error) {
       console.error('Error loading summaries:', error);
       setError('Failed to load class summaries');
@@ -285,11 +275,73 @@ function StudentDashboard() {
               padding: '40px 0',
               textAlign: 'center'
             }}>
-              <div style={{ 
-                color: '#888'
-              }}>
-                No recordings yet
-              </div>
+              {summaries.length === 0 ? (
+                <div style={{ 
+                  color: '#888'
+                }}>
+                  No summaries yet
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  padding: '0 20px'
+                }}>
+                  {summaries.map(summary => (
+                    <div key={summary.id} style={{
+                      backgroundColor: '#2d2d2d',
+                      borderRadius: '8px',
+                      padding: '20px',
+                      textAlign: 'left'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
+                      }}>
+                        <h4 style={{
+                          margin: 0,
+                          color: '#fff',
+                          fontSize: '18px'
+                        }}>{summary.name}</h4>
+                        <span style={{
+                          color: '#888',
+                          fontSize: '14px'
+                        }}>
+                          {new Date(summary.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      {summary.type === 'pdf' ? (
+                        <a
+                          href={`https://s3.us-west-1.wasabisys.com/thetatest/${summary.content}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            padding: '8px 16px',
+                            backgroundColor: '#007bff',
+                            color: '#fff',
+                            textDecoration: 'none',
+                            borderRadius: '4px',
+                            marginTop: '8px'
+                          }}
+                        >
+                          Download PDF
+                        </a>
+                      ) : (
+                        <div style={{
+                          color: '#fff',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {summary.content}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

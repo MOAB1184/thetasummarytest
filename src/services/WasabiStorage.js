@@ -271,37 +271,41 @@ class WasabiStorage {
 
   async getSummaries(teacherEmail, classCode) {
     try {
-      const summariesPath = this.getSummariesPath(teacherEmail, classCode);
+      const schoolName = sessionStorage.getItem('userSchool');
+      if (!schoolName) {
+        throw new Error('School information not found');
+      }
+
+      const summariesPath = this.getSummariesPath(schoolName, teacherEmail, classCode);
       const summariesData = await this.listObjects(summariesPath);
       const summaries = [];
 
       for (const summary of summariesData) {
-        if (summary.Key.endsWith('.tex')) {
+        if (summary.Key.endsWith('.json')) {
           try {
             const summaryData = await this.s3.getObject({
               Bucket: this.bucket,
               Key: summary.Key
             }).promise();
             
-            // Get the raw content as a UTF-8 string
-            const content = summaryData.Body.toString('utf-8');
-            const fileName = summary.Key.split('/').pop().replace('.tex', '');
-            
-            summaries.push({
-              id: summary.Key,
-              fileName: fileName,
-              content: content,
-              timestamp: summary.LastModified,
-              type: 'tex'
-            });
+            summaries.push(JSON.parse(summaryData.Body.toString()));
           } catch (error) {
             console.error('Error reading summary file:', summary.Key, error);
           }
+        } else if (summary.Key.endsWith('.pdf')) {
+          // For PDFs, create a summary object with the file info
+          summaries.push({
+            id: summary.Key,
+            name: summary.Key.split('/').pop(),
+            content: summary.Key, // Store the path to the PDF
+            timestamp: summary.LastModified.getTime(),
+            type: 'pdf'
+          });
         }
       }
 
       // Sort summaries by date, newest first
-      summaries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      summaries.sort((a, b) => b.timestamp - a.timestamp);
       return summaries;
     } catch (error) {
       console.error('Error getting summaries:', error);
