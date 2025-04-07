@@ -202,6 +202,23 @@ function StudentDashboard() {
     }
   };
 
+  // Function to get pre-signed URL for PDF download
+  async function getPDFDownloadUrl(pdfId) {
+    try {
+      const schoolName = sessionStorage.getItem('userSchool');
+      const url = await wasabiStorage.getPresignedUrl(schoolName, selectedClass.teacherEmail, selectedClass.code, pdfId);
+
+      if (url) {
+        window.open(url, '_blank');
+      } else {
+        setError('Failed to generate download link');
+      }
+    } catch (error) {
+      console.error('Error getting PDF URL:', error);
+      setError('Failed to generate download link');
+    }
+  }
+
   if (loading) {
     return <div className="loading">Loading student dashboard...</div>;
   }
@@ -314,10 +331,8 @@ function StudentDashboard() {
                         </span>
                       </div>
                       {summary.type === 'pdf' ? (
-                        <a
-                          href={`https://s3.us-west-1.wasabisys.com/thetatest/${summary.content}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => getPDFDownloadUrl(summary.id)}
                           style={{
                             display: 'inline-block',
                             padding: '8px 16px',
@@ -329,7 +344,7 @@ function StudentDashboard() {
                           }}
                         >
                           Download PDF
-                        </a>
+                        </button>
                       ) : (
                         <div style={{
                           color: '#fff',

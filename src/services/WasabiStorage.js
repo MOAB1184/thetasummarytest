@@ -312,6 +312,23 @@ class WasabiStorage {
       return [];
     }
   }
+
+  async getPresignedUrl(schoolName, teacherEmail, classCode, pdfId) {
+    try {
+        // Extract just the filename from the full path if it's a full path
+        const fileName = pdfId.includes('/') ? pdfId.split('/').pop() : pdfId;
+        const key = `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/summaries/${fileName}`;
+        const url = this.s3.getSignedUrl('getObject', {
+            Bucket: this.bucket,
+            Key: key,
+            Expires: 3600 // URL expires in 1 hour
+        });
+        return url;
+    } catch (error) {
+        console.error('Error generating pre-signed URL:', error);
+        return null;
+    }
+  }
 }
 
 // Create and export a singleton instance
