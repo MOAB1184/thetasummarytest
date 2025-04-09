@@ -554,6 +554,16 @@ select[readonly] {
   user-select: auto !important;
 }
 
+/* Fix autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-tertiary) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Ensure forms in login container are always usable */
 .login-container input,
 .login-container select,
@@ -561,7 +571,27 @@ select[readonly] {
   pointer-events: auto !important;
   user-select: auto !important;
   -webkit-user-select: auto !important;
-  -webkit-text-fill-color: #fff !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+/* Login button specific styles */
+.login-container button {
+  background-color: var(--accent-primary) !important;
+  color: var(--text-primary) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 1rem !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  width: 100% !important;
+  margin: 1rem 0 !important;
+}
+
+.login-container button:hover {
+  background-color: var(--accent-hover) !important;
+  transform: translateY(-2px) !important;
 }
 
 /* Force enable all inputs */
