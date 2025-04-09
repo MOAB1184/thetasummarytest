@@ -134,7 +134,11 @@ function StudentDashboard() {
       
       // Check if student is already enrolled in this class
       const studentData = await wasabiStorage.getData(wasabiStorage.getStudentPath(schoolName, studentEmail));
-      if (studentData.classes && studentData.classes.some(c => c.code === classCode.trim().toUpperCase())) {
+      if (!studentData.classes) {
+        studentData.classes = [];
+      }
+      
+      if (studentData.classes.some(c => c.code === classCode.trim().toUpperCase())) {
         setError('You are already enrolled in this class');
         return;
       }
@@ -196,6 +200,9 @@ function StudentDashboard() {
       alert('Join request sent! Please wait for teacher approval.');
       setClassCode('');
       setShowJoinClass(false);
+      
+      // Reload student data to show updated class list
+      await loadStudentData();
     } catch (error) {
       console.error('Error joining class:', error);
       setError('Failed to join class: ' + error.message);
