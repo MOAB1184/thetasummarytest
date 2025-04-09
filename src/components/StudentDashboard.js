@@ -37,18 +37,31 @@ function StudentDashboard() {
       const enrolledClasses = [];
       const processedCodes = new Set(); // Track processed class codes
 
-      for (const classInfo of studentData.classes || []) {
-        // Skip if we've already processed this class code
-        if (processedCodes.has(classInfo.code)) {
-          continue;
-        }
+      if (studentData.classes && Array.isArray(studentData.classes)) {
+        for (const classInfo of studentData.classes) {
+          // Skip if we've already processed this class code
+          if (processedCodes.has(classInfo.code)) {
+            continue;
+          }
 
-        const classData = await wasabiStorage.getData(
-          wasabiStorage.getClassPath(schoolName, classInfo.teacherEmail, classInfo.code)
-        );
-        if (classData) {
-          enrolledClasses.push(classData);
-          processedCodes.add(classInfo.code); // Mark this class code as processed
+          try {
+            const classData = await wasabiStorage.getData(
+              wasabiStorage.getClassPath(schoolName, classInfo.teacherEmail, classInfo.code)
+            );
+            
+            if (classData) {
+              // Merge class info with class data
+              enrolledClasses.push({
+                ...classData,
+                teacherEmail: classInfo.teacherEmail,
+                joinedAt: classInfo.joinedAt
+              });
+              processedCodes.add(classInfo.code);
+            }
+          } catch (error) {
+            console.error(`Error loading class ${classInfo.code}:`, error);
+            // Continue loading other classes even if one fails
+          }
         }
       }
 
@@ -80,6 +93,7 @@ function StudentDashboard() {
         }
       }
 
+      console.log('Loaded enrolled classes:', enrolledClasses);
       setClasses(enrolledClasses);
       setPendingRequests(pendingClasses);
       setLoading(false);

@@ -39,12 +39,12 @@ function AdminDashboard() {
         teachersData
           .filter(teacher => teacher.Key.endsWith('.json'))
           .map(async (teacher) => {
-          const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
-          const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
+            const email = teacher.Key.replace('teacher-approval/', '').replace('.json', '');
+            const teacherData = await wasabiStorage.getData(`teacher-approval/${email}.json`);
             return {
               name: teacherData.name,
               email: email,
-              school: teacherData.school // Just use the school name directly since we store it that way
+              school: teacherData.school
             };
           })
       );
@@ -52,18 +52,27 @@ function AdminDashboard() {
 
       // Load approved teachers for each school in parallel
       const approvedTeachersMap = {};
+      const processedEmails = new Set(); // Track processed emails to avoid duplicates
+
       const schoolPromises = schoolsData.map(async (school) => {
         const teachersList = await wasabiStorage.listObjects(`${school.name}/teachers/`);
         const schoolTeachers = await Promise.all(
           teachersList
-            .filter(teacher => teacher.Key.endsWith('info.json')) // Only get actual teacher info files
+            .filter(teacher => teacher.Key.endsWith('info.json'))
             .map(async (teacher) => {
-          const email = teacher.Key.split('/')[2];
+              const email = teacher.Key.split('/')[2];
+              
+              // Skip if we've already processed this email
+              if (processedEmails.has(email)) {
+                return null;
+              }
+              processedEmails.add(email);
+              
               const teacherData = await wasabiStorage.getData(`${school.name}/teachers/${email}/info.json`);
               if (teacherData) {
                 return {
-                      ...teacherData,
-                      email,
+                  ...teacherData,
+                  email,
                   school: school.name
                 };
               }
@@ -261,17 +270,51 @@ function AdminDashboard() {
 
   const loadClassStudents = async (schoolName, classCode) => {
     try {
+      console.log(`Loading students for class ${classCode} in school ${schoolName}`);
+      
+      // First, try to get students from the class's students directory
       const students = await wasabiStorage.listObjects(`${schoolName}/teachers/${selectedTeacher.email}/classes/${classCode}/students/`);
-      const studentsData = await Promise.all(
-        students
-          .filter(s => s.Key.endsWith('/info.json'))
-          .map(async (s) => {
-            const studentEmail = s.Key.split('/')[6]; // Get student email from path
-            const studentData = await wasabiStorage.getData(`${schoolName}/students/${studentEmail}/info.json`);
-            return { ...studentData, email: studentEmail };
-          })
-      );
-      setClassStudents(studentsData);
+      
+      if (students.length > 0) {
+        console.log(`Found ${students.length} students in class directory`);
+        const studentsData = await Promise.all(
+          students
+            .filter(s => s.Key.endsWith('/info.json'))
+            .map(async (s) => {
+              const studentEmail = s.Key.split('/')[6]; // Get student email from path
+              const studentData = await wasabiStorage.getData(`${schoolName}/students/${studentEmail}/info.json`);
+              return { ...studentData, email: studentEmail };
+            })
+        );
+        setClassStudents(studentsData);
+        return;
+      }
+      
+      // If no students found in class directory, try to find them from student records
+      console.log('No students found in class directory, checking student records');
+      const allStudents = await wasabiStorage.listObjects(`${schoolName}/students/`);
+      const enrolledStudents = [];
+      
+      for (const student of allStudents) {
+        if (!student.Key.endsWith('/info.json')) continue;
+        
+        const studentEmail = student.Key.split('/')[2];
+        const studentData = await wasabiStorage.getData(student.Key);
+        
+        if (studentData && studentData.classes && Array.isArray(studentData.classes)) {
+          // Check if this student is enrolled in the selected class
+          const isEnrolled = studentData.classes.some(c => 
+            c.code === classCode && c.teacherEmail === selectedTeacher.email
+          );
+          
+          if (isEnrolled) {
+            enrolledStudents.push({ ...studentData, email: studentEmail });
+          }
+        }
+      }
+      
+      console.log(`Found ${enrolledStudents.length} enrolled students from student records`);
+      setClassStudents(enrolledStudents);
     } catch (error) {
       console.error('Error loading students:', error);
       setError('Failed to load students');
