@@ -1,7 +1,29 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import emailjs from 'emailjs-com';
 
 function LandingPage() {
+  // EmailJS handler
+  const handleContactSubmit = (e) => {
+    e.preventDefault();
+    const form = e.target;
+    emailjs.sendForm(
+      'service_oildj6m',
+      'template_05hymca', 
+      form,
+      'gwttnJTCmPFTWS0TG' 
+    ).then(
+      (result) => {
+        alert('Message sent successfully!');
+        form.reset();
+      },
+      (error) => {
+        alert('Failed to send message. Please try again later.');
+        console.error(error);
+      }
+    );
+  };
+
   return (
     <div style={{
       maxWidth: '1200px',
@@ -85,9 +107,10 @@ function LandingPage() {
         <p style={{
           fontSize: '24px',
           color: '#888',
-          marginBottom: '48px',
+          marginBottom: '24px', // slightly less space below description
           maxWidth: '600px',
-          margin: '0 auto'
+          marginLeft: 'auto',
+          marginRight: 'auto'
         }}>
           Automatically record, summarize, and organize your lectures for better student engagement and accessibility
         </p>
@@ -95,7 +118,8 @@ function LandingPage() {
           display: 'flex',
           justifyContent: 'center',
           gap: '24px',
-          marginBottom: '64px' // Added more space
+          marginBottom: '16px', // even less space below button before How It Works
+          marginTop: '16px'
         }}>
           <Link to="/create-account" style={{
             padding: '12px 24px',
@@ -114,7 +138,7 @@ function LandingPage() {
         backgroundColor: '#1a1a1a',
         borderRadius: '16px',
         padding: '32px',
-        marginTop: '48px'
+        marginTop: '32px', // slightly more space above How It Works
       }}>
         <h2 style={{ 
           fontSize: '32px',
@@ -208,6 +232,55 @@ function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Contact Form Section */}
+      <div style={{
+        backgroundColor: '#181818',
+        borderRadius: '16px',
+        padding: '32px',
+        marginTop: '56px', // slightly more space after How It Works
+        maxWidth: '600px',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        color: '#fff',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.2)'
+      }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '24px', color: '#fff' }}>Contact Us</h2>
+        <form onSubmit={handleContactSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="name" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Name</label>
+            <input id="name" name="name" type="text" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff' }} />
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="email" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Email</label>
+            <input id="email" name="email" type="email" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff' }} />
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="message" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Message</label>
+            <textarea id="message" name="message" rows="4" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff', resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <button type="submit" style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#007bff', color: '#fff', fontWeight: 600, fontSize: '16px', cursor: 'pointer' }}>Send Message</button>
+        </form>
+      </div>
+
+      {/* Footer Section */}
+      <footer style={{
+        backgroundColor: '#111111',
+        color: '#bbb',
+        textAlign: 'center',
+        padding: '24px 0 16px 0',
+        position: 'fixed',
+        left: 0,
+        bottom: 0,
+        width: '100vw',
+        borderRadius: '0 0 16px 16px',
+        fontSize: '16px',
+        letterSpacing: '0.5px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        zIndex: 2000
+      }}>
+        &copy; {new Date().getFullYear()} ThetaSummary. All rights reserved.
+      </footer>
     </div>
   );
 }
