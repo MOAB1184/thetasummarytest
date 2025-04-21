@@ -238,7 +238,7 @@ function LandingPage() {
         backgroundColor: '#181818',
         borderRadius: '16px',
         padding: '32px',
-        marginTop: '56px', // slightly more space after How It Works
+        marginTop: '56px', 
         maxWidth: '600px',
         marginLeft: 'auto',
         marginRight: 'auto',

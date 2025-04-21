@@ -293,8 +293,20 @@ function StudentDashboard() {
               >
                 ← Back to Classes
               </button>
-              <div style={{ color: '#888' }}>
-                Class: {selectedClass.name}
+              <div style={{ 
+                color: '#888', 
+                fontWeight: 400, 
+                fontSize: '1.1rem',
+                marginBottom: 20,
+                textAlign: 'right',
+                minHeight: 0,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap'
+              }}>
+                Class: {selectedClass.name} {selectedClass.period}
               </div>
             </div>
 
@@ -351,12 +363,14 @@ function StudentDashboard() {
                         <span style={{
                           fontSize: '1.25rem',
                           fontWeight: '700',
-                          marginBottom: '4px'
+                          marginBottom: '4px',
+                          color: '#fff'
                         }}>{formatDateOnly(summary.timestamp)}</span>
                         <h4 style={{
                           margin: 0,
                           fontSize: '1rem',
-                          fontWeight: '500'
+                          fontWeight: '500',
+                          color: '#888'
                         }}>{summary.name}</h4>
                       </div>
                       {summary.type === 'pdf' ? (
