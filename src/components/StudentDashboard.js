@@ -112,7 +112,10 @@ function StudentDashboard() {
         return;
       }
 
-      const summaries = await wasabiStorage.getSummaries(teacherEmail, classCode);
+      // Only show approved summaries to students
+      const summaries = await wasabiStorage.getSummaries(teacherEmail, classCode, {
+        approvedOnly: true
+      });
       setSummaries(summaries);
     } catch (error) {
       console.error('Error loading summaries:', error);
@@ -240,6 +243,12 @@ function StudentDashboard() {
     }
   }
 
+  // Helper for formatting date
+  function formatDateOnly(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  }
+
   if (loading) {
     return <div className="loading">Loading student dashboard...</div>;
   }
@@ -285,7 +294,7 @@ function StudentDashboard() {
                 ← Back to Classes
               </button>
               <div style={{ color: '#888' }}>
-                Class: period 1
+                Class: {selectedClass.name}
               </div>
             </div>
 
@@ -339,17 +348,16 @@ function StudentDashboard() {
                         alignItems: 'center',
                         marginBottom: '12px'
                       }}>
+                        <span style={{
+                          fontSize: '1.25rem',
+                          fontWeight: '700',
+                          marginBottom: '4px'
+                        }}>{formatDateOnly(summary.timestamp)}</span>
                         <h4 style={{
                           margin: 0,
-                          color: '#fff',
-                          fontSize: '18px'
+                          fontSize: '1rem',
+                          fontWeight: '500'
                         }}>{summary.name}</h4>
-                        <span style={{
-                          color: '#888',
-                          fontSize: '14px'
-                        }}>
-                          {new Date(summary.timestamp).toLocaleString()}
-                        </span>
                       </div>
                       {summary.type === 'pdf' ? (
                         <button
