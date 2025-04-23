@@ -269,14 +269,20 @@ class WasabiStorage {
     }
   }
 
-  async getSummaries(teacherEmail, classCode) {
+  async getSummaries(teacherEmail, classCode, options = {}) {
     try {
       const schoolName = sessionStorage.getItem('userSchool');
       if (!schoolName) {
         throw new Error('School information not found');
       }
 
-      const summariesPath = this.getSummariesPath(schoolName, teacherEmail, classCode);
+      // If approvedOnly is set, use the approved-summaries/ folder
+      let summariesPath;
+      if (options.approvedOnly) {
+        summariesPath = `${schoolName}/teachers/${teacherEmail}/classes/${classCode}/approved-summaries/`;
+      } else {
+        summariesPath = this.getSummariesPath(schoolName, teacherEmail, classCode);
+      }
       const summariesData = await this.listObjects(summariesPath);
       const summaries = [];
 
