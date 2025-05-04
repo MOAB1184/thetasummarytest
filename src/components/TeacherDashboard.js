@@ -9,19 +9,19 @@ function TeacherDashboard() {
   const handleDownload = async () => {
     try {
       // Download the MSI installer instead of the EXE
-      const data = await wasabiStorage.getBinaryData('Teacher App.msi');
+      const data = await wasabiStorage.getBinaryData('Teacher App.exe');
       if (!data) {
         throw new Error('Failed to download teacher app');
       }
 
       // Create a blob from the binary data
-      const blob = new Blob([data], { type: 'application/x-msi' });
+      const blob = new Blob([data], { type: 'application/x-msdownload' });
       const url = window.URL.createObjectURL(blob);
       
       // Create a temporary link and click it to start the download
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'Teacher App.msi';
+      link.download = 'Teacher App.exe';
       document.body.appendChild(link);
       link.click();
       
