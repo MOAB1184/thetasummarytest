@@ -1,288 +1,297 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import emailjs from 'emailjs-com';
+import { useNavigate } from 'react-router-dom';
+import AppRecording from './assets/AppRecording.png';
+import SummariesApp from './assets/SummariesApp.png';
+import PDFEditorApp from './assets/PDFEditorApp.png';
+import ClassesApp from './assets/ClassesApp.png';
+import RecordingsApp from './assets/AppRecordings.png';
+import logo from './assets/logo.png';
 
-function LandingPage() {
-  // EmailJS handler
-  const handleContactSubmit = (e) => {
+const LandingPage = () => {
+  const navigate = useNavigate();
+
+  // Handlers for navigation
+  const handleLogin = (e) => {
     e.preventDefault();
-    const form = e.target;
-    emailjs.sendForm(
-      'service_oildj6m',
-      'template_05hymca', 
-      form,
-      'gwttnJTCmPFTWS0TG' 
-    ).then(
-      (result) => {
-        alert('Message sent successfully!');
-        form.reset();
-      },
-      (error) => {
-        alert('Failed to send message. Please try again later.');
-        console.error(error);
-      }
-    );
+    navigate('/login');
+  };
+  const handleSignup = (e) => {
+    e.preventDefault();
+    navigate('/create-account');
+  };
+  const handleGetStarted = (e) => {
+    e.preventDefault();
+    navigate('/create-account');
   };
 
   return (
-    <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '24px',
-      minHeight: '100vh',
-      backgroundColor: '#121212'
-    }}>
-      {/* Navbar */}
-      <nav style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#1a1a1a',
-        padding: '16px 24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 1000
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px'
-        }}>
-          <h1 style={{ 
-            margin: 0,
-            fontSize: '24px',
-            color: '#fff'
-          }}>ThetaSummary</h1>
-        </div>
-        
-        <div style={{
-          display: 'flex',
-          gap: '16px'
-        }}>
-          <Link 
-            to="/login" 
-            style={{
-              padding: '8px 16px',
-              fontSize: '16px',
-              backgroundColor: '#007bff',
-              color: '#fff',
-              textDecoration: 'none',
-              borderRadius: '4px',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            Login
-          </Link>
-          <Link 
-            to="/create-account" 
-            style={{
-              padding: '8px 16px',
-              fontSize: '16px',
-              backgroundColor: '#007bff',
-              color: '#fff',
-              textDecoration: 'none',
-              borderRadius: '4px',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            Create Account
-          </Link>
+    <>
+      <style>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #121212; color: #e0e0e0; line-height: 1.6; }
+        .container { width: 90%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+        h1, h2, h3, h4 { color: #fff; margin-bottom: 0.8em; line-height: 1.3; }
+        h1 { font-size: 2.8rem; font-weight: 700; }
+        h2 { font-size: 2.2rem; font-weight: 600; text-align: center; margin-bottom: 1.5em; }
+        h3 { font-size: 1.5rem; font-weight: 600; }
+        p { margin-bottom: 1em; color: #b0b0b0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        img { max-width: 100%; height: auto; }
+        .btn { display: inline-block; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: 600; transition: background-color 0.3s ease, transform 0.2s ease; border: none; cursor: pointer; }
+        .btn-primary { background-color: #007bff; color: #fff; }
+        .btn-primary:hover { background-color: #0056b3; transform: translateY(-2px); text-decoration: none; }
+        .btn-secondary { background-color: transparent; color: #e0e0e0; border: 1px solid #555; }
+        .btn-secondary:hover { background-color: #333; color: #fff; text-decoration: none; }
+        .btn-large { padding: 15px 35px; font-size: 1.1rem; }
+        header { background-color: #1f1f1f; padding: 15px 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        header .container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .logo:hover { text-decoration: none; }
+        header nav ul { list-style: none; display: flex; }
+        header nav ul li { margin-left: 25px; }
+        header nav ul li a { color: #e0e0e0; font-weight: 600; }
+        header nav ul li a:hover { color: #007bff; text-decoration: none; }
+        .auth-buttons .btn { margin-left: 10px; }
+        .hero-section { padding: 80px 0; text-align: center; background-color: #1a1a1a; }
+        .hero-section h1 { margin-bottom: 0.5em; }
+        .hero-section .subtitle { font-size: 1.2rem; color: #c0c0c0; max-width: 700px; margin: 0 auto 30px auto; }
+        .hero-image-placeholder { margin-top: 40px; background-color: #2a2a2a; padding: 50px; border-radius: 8px; color: #777; font-style: italic; border: 1px dashed #444; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+        .value-prop-section { padding: 60px 0; background-color: #121212; }
+        .value-prop-section h2 { margin-bottom: 1em; }
+        .value-prop-section > .container > p { text-align: center; max-width: 800px; margin-left: auto; margin-right: auto; font-size: 1.1rem; margin-bottom: 3em; }
+        .benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; text-align: center; }
+        .benefit-item img { background-color: #007bff33; border-radius: 50%; padding: 10px; margin-bottom: 15px; width: 60px; height: 60px; object-fit: contain; }
+        .benefit-item h3 { margin-bottom: 0.5em; }
+        .features-section { padding: 60px 0; background-color: #1f1f1f; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .feature-card { background-color: #2a2a2a; padding: 30px; border-radius: 8px; text-align: center; border: 1px solid #383838; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .feature-card img { margin-bottom: 20px; background-color: #007bff33; border-radius: 8px; padding: 10px; width: 80px; height: 80px; object-fit: contain; }
+        .feature-card h3 { margin-bottom: 0.5em; }
+        .how-it-works-section { padding: 60px 0; background-color: #121212; }
+        .steps-container { display: flex; justify-content: space-around; gap: 30px; text-align: center; flex-wrap: wrap; }
+        .step { background-color: #1f1f1f; padding: 30px; border-radius: 8px; flex-basis: 30%; min-width: 280px; border: 1px solid #383838; }
+        .step-number { font-size: 2rem; font-weight: 700; color: #007bff; border: 2px solid #007bff; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; }
+        .step h3 { margin-bottom: 0.5em; }
+        .step-image { margin-top: 20px; border-radius: 6px; border: 1px solid #444; background-color: #555; min-height: 150px; display: flex; align-items: center; justify-content: center; color: #fff; }
+        .step-image.has-img { background: transparent !important; border: none; min-height: unset; padding: 0; }
+        .step-image.has-img img { display: block; width: 100%; border-radius: 6px; border: 1px solid #444; }
+        .showcase-section { padding: 60px 0; background-color: #1f1f1f; text-align: center; }
+        .showcase-section > .container > p { margin-bottom: 2em; font-size: 1.1rem; }
+        .showcase-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; text-align: left; }
+        .showcase-item { background-color: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #383838; }
+        .showcase-item h4 { margin-bottom: 15px; color: #007bff; }
+        .showcase-item img { width: 100%; border-radius: 6px; margin-bottom: 15px; border: 1px solid #444; background-color: #666; min-height: 250px; display: flex; align-items: center; justify-content: center; color: #fff; }
+        .testimonials-section { padding: 60px 0; background-color: #121212; }
+        .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .testimonial { background-color: #1f1f1f; padding: 30px; border-radius: 8px; border-left: 5px solid #007bff; font-style: italic; border: 1px solid #383838; }
+        .testimonial p { margin-bottom: 1em; color: #d0d0d0; }
+        .testimonial footer { font-style: normal; font-weight: 600; color: #a0a0a0; }
+        .contact-section { padding: 60px 0; background-color: #1f1f1f; }
+        .contact-section > .container > p { text-align: center; max-width: 600px; margin-left: auto; margin-right: auto; font-size: 1.1rem; margin-bottom: 2em; }
+        .contact-form { max-width: 600px; margin: 0 auto; background-color: #2a2a2a; padding: 30px; border-radius: 8px; border: 1px solid #383838; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #e0e0e0; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #444; background-color: #1c1c1c; color: #e0e0e0; font-size: 1rem; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
+        .contact-form .btn { width: 100%; padding: 15px; }
+        footer { background-color: #121212; color: #888; text-align: center; padding: 30px 0; border-top: 1px solid #2a2a2a; }
+        .footer-links { list-style: none; padding: 0; margin-top: 10px; }
+        .footer-links li { display: inline; margin: 0 10px; }
+        .footer-links li a { color: #888; }
+        .footer-links li a:hover { color: #007bff; }
+        @media (max-width: 992px) { h1 { font-size: 2.4rem; } h2 { font-size: 1.8rem; } .steps-container { flex-direction: column; align-items: center; } .step { flex-basis: 80%; max-width: 500px; } }
+        @media (max-width: 768px) { header .container { flex-direction: column; } header nav ul { margin-top: 15px; flex-direction: column; align-items: center; } header nav ul li { margin: 8px 0; } .auth-buttons { margin-top: 15px; } .auth-buttons .btn { margin: 5px; } .hero-section { padding: 60px 0; } h1 { font-size: 2rem; } .hero-section .subtitle { font-size: 1rem; } .features-grid, .testimonial-grid, .showcase-grid, .benefits-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 480px) { .container { width: 95%; padding: 0 10px; } h1 { font-size: 1.8rem; } h2 { font-size: 1.6rem; } .btn { padding: 10px 20px; } .btn-large { padding: 12px 25px; font-size: 1rem; } }
+      `}</style>
+      <header>
+        <nav className="container">
+          <a href="#" className="logo">
+            <img src={logo} alt="ThetaSummary Logo" style={{ height: '30px', marginRight: '10px', verticalAlign: 'middle', display: 'inline-block', position: 'relative', top: '-3px' }} />
+            ThetaSummary
+          </a>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#showcase">Showcase</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+          <div className="auth-buttons">
+            <a href="/login" className="btn btn-secondary" onClick={handleLogin}>Login</a>
+            <a href="/signup" className="btn btn-primary" onClick={handleSignup}>Create Account</a>
         </div>
       </nav>
-
+      </header>
+      <main>
       {/* Hero Section */}
-      <div style={{
-        textAlign: 'center',
-        padding: '48px 0',
-        marginTop: '80px' // Add space for fixed navbar
-      }}>
-        <h1 style={{ 
-          margin: 0,
-          fontSize: '48px',
-          color: '#fff',
-          marginBottom: '24px'
-        }}>Smart Lecture Management</h1>
-        <p style={{
-          fontSize: '24px',
-          color: '#888',
-          marginBottom: '24px', // slightly less space below description
-          maxWidth: '600px',
-          marginLeft: 'auto',
-          marginRight: 'auto'
-        }}>
-          Automatically record, summarize, and organize your lectures for better student engagement and accessibility
-        </p>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '24px',
-          marginBottom: '16px', // even less space below button before How It Works
-          marginTop: '16px'
-        }}>
-          <Link to="/create-account" style={{
-            padding: '12px 24px',
-            fontSize: '18px',
-            backgroundColor: '#007bff',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '8px',
-            transition: 'background-color 0.2s'
-          }}>Get Started</Link>
+        <section id="hero" className="hero-section">
+          <div className="container">
+            <h1>Smart Lecture Management, Simplified.</h1>
+            <p className="subtitle">Automatically record, transcribe, summarize, and organize your lectures for enhanced student engagement and unparalleled accessibility.</p>
+            <a href="/signup" className="btn btn-primary btn-large" onClick={handleGetStarted}>Get Started Free</a>
+            <div className="hero-image-placeholder">
+              <p>Illustrative Graphic/App Mockup</p>
+      </div>
+          </div>
+        </section>
+        {/* Value Proposition Section */}
+        <section id="value-prop" className="value-prop-section">
+          <div className="container">
+            <h2>Stop Drowning in Lecture Notes. Start Understanding.</h2>
+            <p>Traditional note-taking is exhausting and often ineffective. ThetaSummary gives you the power to focus on what truly matters during lectures, knowing every detail is captured and intelligently processed for you.</p>
+            <div className="benefits-grid">
+              <div className="benefit-item">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpolyline points='12 6 12 12 16 14'%3E%3C/polyline%3E%3C/svg%3E" alt="Save Time Icon" />
+                <h3>Save Precious Time</h3>
+                <p>Eliminate hours of manual note-taking and re-listening to recordings.</p>
+              </div>
+              <div className="benefit-item">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'%3E%3C/path%3E%3C/svg%3E" alt="Boost Comprehension Icon" />
+                <h3>Boost Comprehension</h3>
+                <p>Engage fully with the lecture content, knowing summaries and key points are generated for you.</p>
+              </div>
+              <div className="benefit-item">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E" alt="Stay Organized Icon" />
+                <h3>Stay Organized</h3>
+                <p>All your lecture materials, perfectly structured, searchable, and accessible anytime.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* Features Section */}
+        <section id="features" className="features-section">
+          <div className="container">
+            <h2>Packed with Powerful Features</h2>
+            <div className="features-grid">
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z'%3E%3C/path%3E%3Cpath d='M19 10v2a7 7 0 0 1-14 0v-2'%3E%3C/path%3E%3Cline x1='12' y1='19' x2='12' y2='23'%3E%3C/line%3E%3Cline x1='8' y1='23' x2='16' y2='23'%3E%3C/line%3E%3C/svg%3E" alt="Recording Icon" />
+                <h3>Automated Recording</h3>
+                <p>Seamless in-app recording or easy upload of existing audio/video files.</p>
+              </div>
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'%3E%3C/path%3E%3Cpolyline points='14 2 14 8 20 8'%3E%3C/polyline%3E%3Cline x1='16' y1='13' x2='8' y2='13'%3E%3C/line%3E%3Cline x1='16' y1='17' x2='8' y2='17'%3E%3C/line%3E%3Cpolyline points='10 9 9 9 8 9'%3E%3C/polyline%3E%3C/svg%3E" alt="Transcription Icon" />
+                <h3>AI-Powered Transcription</h3>
+                <p>Get accurate, time-stamped transcripts of your lectures in minutes.</p>
+              </div>
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'%3E%3C/polygon%3E%3C/svg%3E" alt="Summarization Icon" />
+                <h3>Intelligent Summarization</h3>
+                <p>AI identifies key concepts, action items, and generates concise, editable summaries.</p>
+              </div>
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'%3E%3C/path%3E%3Cpath d='M12 11v4'%3E%3C/path%3E%3Cpath d='M10 13h4'%3E%3C/path%3E%3C/svg%3E" alt="Organization Icon" />
+                <h3>Smart Organization</h3>
+                <p>Lectures automatically categorized by class, with powerful search capabilities.</p>
+              </div>
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'%3E%3C/path%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'%3E%3C/path%3E%3C/svg%3E" alt="Editing Icon" />
+                <h3>PDF Editing & Export</h3>
+                <p>Review, approve, and even edit your summaries directly as PDFs before sharing.</p>
+              </div>
+              <div className="feature-card">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='9' cy='7' r='4'%3E%3C/circle%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'%3E%3C/path%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'%3E%3C/path%3E%3C/svg%3E" alt="Collaboration Icon" />
+                <h3>Student Management</h3>
+                <p>Easily manage student access and share resources within specific classes.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* How It Works Section */}
+        <section id="how-it-works" className="how-it-works-section">
+          <div className="container">
+            <h2>Get Started in 3 Simple Steps</h2>
+            <div className="steps-container">
+              <div className="step">
+                <div className="step-number">1</div>
+                <h3>Record or Upload</h3>
+                <p>Capture your lecture live or upload an existing recording.</p>
+                <div className="step-image has-img"><img src={AppRecording} alt="App Recording Demo" style={{width:'100%',borderRadius:'6px',border:'1px solid #444'}} /></div>
+              </div>
+              <div className="step">
+                <div className="step-number">2</div>
+                <h3>AI Does The Magic</h3>
+                <p>ThetaSummary transcribes, summarizes, and organizes the content.</p>
+                <div className="step-image has-img"><img src ={RecordingsApp} alt="AI Organization Demo" style={{width:'100%',borderRadius:'6px',border:'1px solid #444'}} /></div>
+              </div>
+              <div className="step">
+                <div className="step-number">3</div>
+                <h3>Access & Share</h3>
+                <p>Review your summaries, edit PDFs, and share with students.</p>
+                <div className="step-image has-img"><img src={SummariesApp} alt="Summary View Demo" style={{width:'100%',borderRadius:'6px',border:'1px solid #444'}} /></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* App Showcase Section */}
+        <section id="showcase" className="showcase-section">
+          <div className="container">
+            <h2>See ThetaSummary in Action</h2>
+            <p>Visualize how ThetaSummary transforms your lecture management.</p>
+            <div className="showcase-grid">
+              <div className="showcase-item">
+                <h4>My Classes Dashboard</h4>
+                <img src={ClassesApp} alt="App Dashboard" />
+                <p>Manage all your classes and recordings from one central hub.</p>
+              </div>
+              <div className="showcase-item">
+                <h4>Detailed Summary View & PDF Editor</h4>
+                <img src={PDFEditorApp} alt="Summary and PDF Editor" />
+                <p>Dive into detailed summaries, make edits, and approve content seamlessly.</p>
         </div>
       </div>
-
-      {/* Features Section */}
-      <div style={{
-        backgroundColor: '#1a1a1a',
-        borderRadius: '16px',
-        padding: '32px',
-        marginTop: '32px', // slightly more space above How It Works
-      }}>
-        <h2 style={{ 
-          fontSize: '32px',
-          color: '#fff',
-          marginBottom: '24px',
-          textAlign: 'center'
-        }}>How It Works</h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '24px'
-        }}>
-          <div style={{
-            backgroundColor: '#2d2d2d',
-            borderRadius: '16px',
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
-            }}>🎤</div>
-            <h3 style={{ 
-              fontSize: '24px',
-              color: '#fff',
-              marginBottom: '12px'
-            }}>Lecture Recording</h3>
-            <p style={{ color: '#888' }}>
-              Automatically record and save your lectures in high quality audio and video.
-            </p>
           </div>
-
-          <div style={{
-            backgroundColor: '#2d2d2d',
-            borderRadius: '16px',
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
-            }}>📝</div>
-            <h3 style={{ 
-              fontSize: '24px',
-              color: '#fff',
-              marginBottom: '12px'
-            }}>Smart Summarization</h3>
-            <p style={{ color: '#888' }}>
-              AI-powered summaries of your lectures, highlighting key points and concepts.
-            </p>
+        </section>
+        {/* Testimonials Section */}
+        <section id="testimonials" className="testimonials-section">
+          <div className="container">
+            <h2>Loved by Educators and Students</h2>
+            <div className="testimonial-grid">
+              <div className="testimonial">
+                <p>"ThetaSummary has revolutionized how I prepare and review lecture material. The AI summaries are a lifesaver!"</p>
+                <footer>- Dr. Jane Doe, University Professor</footer>
+              </div>
+              <div className="testimonial">
+                <p>"As a student, keeping up with notes was tough. Now, I can focus in class and get perfect summaries later. My grades have improved!"</p>
+                <footer>- John Smith, College Student</footer>
+              </div>
+            </div>
           </div>
-
-          <div style={{
-            backgroundColor: '#2d2d2d',
-            borderRadius: '16px',
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
-            }}>📚</div>
-            <h3 style={{ 
-              fontSize: '24px',
-              color: '#fff',
-              marginBottom: '12px'
-            }}>Organized Access</h3>
-            <p style={{ color: '#888' }}>
-              All your lectures are neatly organized by date, course, and topic for easy access.
-            </p>
+        </section>
+        {/* Contact Section */}
+        <section id="contact" className="contact-section">
+          <div className="container">
+            <h2>Get in Touch</h2>
+            <p>Have questions or want a demo? We'd love to hear from you.</p>
+            <form className="contact-form" onSubmit={e => e.preventDefault()}>
+              <div className="form-group">
+                <label htmlFor="name">Name</label>
+                <input type="text" id="name" name="name" required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input type="email" id="email" name="email" required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="message">Message</label>
+                <textarea id="message" name="message" rows={5} required />
+              </div>
+              <button type="submit" className="btn btn-primary">Send Message</button>
+            </form>
           </div>
-
-          <div style={{
-            backgroundColor: '#2d2d2d',
-            borderRadius: '16px',
-            padding: '24px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
-            }}>👂</div>
-            <h3 style={{ 
-              fontSize: '24px',
-              color: '#fff',
-              marginBottom: '12px'
-            }}>Student Access</h3>
-            <p style={{ color: '#888' }}>
-              Students can review missed lectures, access summaries, and study at their own pace.
-            </p>
-          </div>
-        </div>
+        </section>
+      </main>
+      <footer>
+        <div className="container">
+          <p>&copy; 2025 ThetaSummary. All rights reserved.</p>
+          <ul className="footer-links">
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
       </div>
-
-      {/* Contact Form Section */}
-      <div style={{
-        backgroundColor: '#181818',
-        borderRadius: '16px',
-        padding: '32px',
-        marginTop: '56px', 
-        maxWidth: '600px',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-        color: '#fff',
-        boxShadow: '0 4px 32px rgba(0,0,0,0.2)'
-      }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '24px', color: '#fff' }}>Contact Us</h2>
-        <form onSubmit={handleContactSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="name" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Name</label>
-            <input id="name" name="name" type="text" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff' }} />
-          </div>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="email" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Email</label>
-            <input id="email" name="email" type="email" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff' }} />
-          </div>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="message" style={{ display: 'block', marginBottom: '6px', color: '#bbb' }}>Message</label>
-            <textarea id="message" name="message" rows="4" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#222', color: '#fff', resize: 'vertical', boxSizing: 'border-box' }} />
-          </div>
-          <button type="submit" style={{ width: '100%', padding: '12px', borderRadius: '6px', border: 'none', background: '#007bff', color: '#fff', fontWeight: 600, fontSize: '16px', cursor: 'pointer' }}>Send Message</button>
-        </form>
-      </div>
-
-      {/* Footer Section */}
-      <footer style={{
-        backgroundColor: '#111111',
-        color: '#bbb',
-        textAlign: 'center',
-        padding: '24px 0 16px 0',
-        position: 'fixed',
-        left: 0,
-        bottom: 0,
-        width: '100vw',
-        borderRadius: '0 0 16px 16px',
-        fontSize: '16px',
-        letterSpacing: '0.5px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        zIndex: 2000
-      }}>
-        &copy; {new Date().getFullYear()} ThetaSummary. All rights reserved.
       </footer>
-    </div>
+    </>
   );
-}
+};
 
 export default LandingPage;
