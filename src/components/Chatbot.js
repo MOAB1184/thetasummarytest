@@ -49,6 +49,14 @@ function ChatBot() {
       console.error("Error initializing audio context:", e);
     }
 
+    // Add event listener for opening chat with pre-filled message
+    const handleOpenChat = (event) => {
+      const { message } = event.detail;
+      setInputText(message);
+      document.getElementById('app-container').classList.add('chat-active');
+    };
+    window.addEventListener('openChat', handleOpenChat);
+
     // Scroll to bottom on new message
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
@@ -58,6 +66,7 @@ function ChatBot() {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      window.removeEventListener('openChat', handleOpenChat);
     };
   }, []);
 

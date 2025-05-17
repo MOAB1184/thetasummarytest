@@ -369,26 +369,67 @@ function StudentDashboard() {
                         }}>{summary.name}</h4>
                       </div>
                       {summary.type === 'pdf' ? (
-                        <button
-                          onClick={() => getPDFDownloadUrl(summary.id)}
-                          style={{
-                            display: 'inline-block',
-                            padding: '8px 16px',
-                            backgroundColor: '#007bff',
-                            color: '#fff',
-                            textDecoration: 'none',
-                            borderRadius: '4px',
-                            marginTop: '8px'
-                          }}
-                        >
-                          Download PDF
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => getPDFDownloadUrl(summary.id)}
+                            style={{
+                              display: 'inline-block',
+                              padding: '8px 16px',
+                              backgroundColor: '#007bff',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              borderRadius: '4px',
+                              marginTop: '8px',
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Download PDF
+                          </button>
+                          <button
+                            onClick={() => window.open(getPDFDownloadUrl(summary.id), '_blank')}
+                            style={{
+                              display: 'inline-block',
+                              padding: '8px 16px',
+                              backgroundColor: '#28a745',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              borderRadius: '4px',
+                              marginTop: '8px',
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View PDF
+                          </button>
+                        </div>
                       ) : (
-                        <div style={{
-                          color: '#fff',
-                          whiteSpace: 'pre-wrap'
-                        }}>
-                          {summary.content}
+                        <div>
+                          <div style={{
+                            color: '#fff',
+                            whiteSpace: 'pre-wrap',
+                            marginBottom: '12px'
+                          }}>
+                            {summary.content}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const message = `Please help me understand this summary:\n\n${summary.content}`;
+                              window.dispatchEvent(new CustomEvent('openChat', { detail: { message } }));
+                            }}
+                            style={{
+                              display: 'inline-block',
+                              padding: '8px 16px',
+                              backgroundColor: '#6f42c1',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              borderRadius: '4px',
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Ask AI to Explain
+                          </button>
                         </div>
                       )}
                     </div>
