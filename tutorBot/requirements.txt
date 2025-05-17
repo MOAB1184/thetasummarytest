@@ -1,0 +1,4 @@
+Flask==2.0.1
+requests==2.25.1
+python-dotenv==0.21.0 # Or a more recent version
+openai>=1.2.0 

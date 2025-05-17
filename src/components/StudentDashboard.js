@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from './BackButton';
 import wasabiStorage from '../services/WasabiStorage';
+import ChatBot from './Chatbot';
 
 function StudentDashboard() {
   const [classes, setClasses] = useState([]);
@@ -254,13 +255,7 @@ function StudentDashboard() {
   }
 
   return (
-    <div className="dashboard-container" style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '24px',
-      minHeight: '100vh',
-      backgroundColor: '#121212'
-    }}>
+    <div className="student-dashboard">
       {selectedClass ? (
         <div className="class-view" style={{
           display: 'flex',
@@ -588,6 +583,7 @@ function StudentDashboard() {
           </div>
         </>
       )}
+      <ChatBot />
     </div>
   );
 }

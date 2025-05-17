@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theta Summary - Transcript Summarizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Theta Summary</h1>
+            <p>Intelligent Transcript Summarization</p>
+            <div class="api-status">
+                <button id="verify-api-btn" class="secondary-btn small-btn">Verify API Key</button>
+                <span id="api-status-indicator" class="status-indicator"></span>
+            </div>
+        </header>
+        
+        <main>
+            <!-- Manual file upload for one-off summaries -->
+            <section class="upload-section">
+                <h2>Manual Upload</h2>
+                <div class="upload-area" id="drop-area">
+                    <form id="upload-form">
+                        <input type="file" id="file-input" accept=".txt" hidden>
+                        <label for="file-input" class="file-input-label">
+                            <div class="upload-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <span>Drop a .txt file here or click to upload</span>
+                        </label>
+                    </form>
+                    <div id="file-info" class="file-info hidden">
+                        <span id="file-name"></span>
+                        <button id="remove-file">✕</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="prompt-section">
+                <h2>Custom Prompt (Optional)</h2>
+                <p>Customize how DeepSeek processes your transcript:</p>
+                <textarea id="prompt-input" placeholder="Example: Summarize this lecture and highlight the key concepts and examples."></textarea>
+                <div class="prompt-info">
+                    <p>Customize your prompt, then click 'Save Prompt' to store it.</p>
+                </div>
+                <div class="prompt-actions">
+                    <button id="save-prompt-btn" class="secondary-btn small-btn" disabled>Save Prompt</button>
+                </div>
+            </section>
+
+            <section class="action-section">
+                <button id="summarize-btn" class="primary-btn" disabled>Generate Summary</button>
+            </section>
+
+            <section class="result-section hidden" id="result-section">
+                <h2>Generated Summary</h2>
+                <div class="result-container">
+                    <div id="summary-content" class="summary-content"></div>
+                </div>
+                <button id="download-btn" class="secondary-btn">Download as .tex</button>
+            </section>
+        </main>
+
+        <div id="loading-overlay" class="hidden">
+            <div class="spinner"></div>
+            <p id="loading-message">Processing your transcript...</p>
+        </div>
+
+        <footer>
+            <p>&copy; 2023 Theta Summary | Powered by DeepSeek AI</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

@@ -215,12 +215,23 @@ function AdminDashboard() {
 
   const removeSchool = async (schoolId) => {
     try {
+      const school = schools.find(s => s.id === schoolId);
+      if (!school) {
+        setError('School not found');
+        return;
+      }
+
+      // Add confirmation dialog
+      const confirmed = window.confirm(`Are you sure you want to remove ${school.name}? This will also remove all associated teachers and classes.`);
+      if (!confirmed) return;
+
       const updatedSchools = schools.filter(school => school.id !== schoolId);
       await wasabiStorage.saveData('schools.json', updatedSchools);
-      setSchools(updatedSchools);
+    
       const newApprovedTeachers = { ...approvedTeachers };
       delete newApprovedTeachers[schools.find(s => s.id === schoolId).name];
       setApprovedTeachers(newApprovedTeachers);
+      setError('School removed successfully', 'success');
     } catch (error) {
       console.error('Error removing school:', error);
       setError('Failed to remove school');
@@ -235,6 +246,16 @@ function AdminDashboard() {
         return;
       }
 
+      const teacher = approvedTeachers[school.name]?.find(t => t.email === teacherEmail);
+      if (!teacher) {
+        setError('Teacher not found');
+        return;
+      }
+
+      // Add confirmation dialog
+      const confirmed = window.confirm(`Are you sure you want to remove ${teacher.name} (${teacher.email}) from ${school.name}? This will also remove all their classes.`);
+      if (!confirmed) return;
+
       // Remove teacher's data
       await wasabiStorage.deleteData(`${school.name}/teachers/${teacherEmail}/info.json`);
       
@@ -243,6 +264,7 @@ function AdminDashboard() {
         ...prev,
         [school.name]: prev[school.name].filter(t => t.email !== teacherEmail)
       }));
+      setError('Teacher removed successfully', 'success');
     } catch (error) {
       console.error('Error removing teacher:', error);
       setError('Failed to remove teacher');
@@ -739,13 +761,57 @@ function AdminDashboard() {
                                 padding: '10px',
                                 marginBottom: '8px',
                                 borderRadius: '4px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                position: 'relative'
                               }}
                             >
                               <div className="class-info">
                                 <span style={{ color: '#fff', fontWeight: 'bold' }}>{classData.name}</span>
                                 <span style={{ color: '#888', fontSize: '14px' }}>Code: {classData.classCode}</span>
                               </div>
+                              <button
+                                className="delete-button"
+                                style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to delete class '${classData.name}'? This will remove all summaries, recordings, and students for this class.`)) {
+                                    try {
+                                      const schoolName = selectedTeacher.school;
+                                      const teacherEmail = selectedTeacher.email;
+                                      const classCode = classData.classCode;
+                                      // Delete class info
+                                      await wasabiStorage.deleteData(wasabiStorage.getClassPath(schoolName, teacherEmail, classCode));
+                                      // Delete all summaries
+                                      const summaries = await wasabiStorage.listObjects(wasabiStorage.getSummariesPath(schoolName, teacherEmail, classCode));
+                                      for (const s of summaries) {
+                                        await wasabiStorage.deleteData(s.Key);
+                                      }
+                                      // Delete all recordings
+                                      const recordings = await wasabiStorage.listObjects(wasabiStorage.getRecordingsPath(schoolName, teacherEmail, classCode));
+                                      for (const r of recordings) {
+                                        await wasabiStorage.deleteData(r.Key);
+                                      }
+                                      // Delete all join-requests
+                                      const joinRequests = await wasabiStorage.listObjects(`${schoolName}/teachers/${teacherEmail}/classes/${classCode}/join-requests/`);
+                                      for (const j of joinRequests) {
+                                        await wasabiStorage.deleteData(j.Key);
+                                      }
+                                      // Optionally: delete students subfolder if exists
+                                      const students = await wasabiStorage.listObjects(`${schoolName}/teachers/${teacherEmail}/classes/${classCode}/students/`);
+                                      for (const st of students) {
+                                        await wasabiStorage.deleteData(st.Key);
+                                      }
+                                      // Refresh class list
+                                      await loadTeacherClasses(schoolName, teacherEmail);
+                                      setSelectedClass(null);
+                                      setClassStudents([]);
+                                      setError('Class deleted successfully', 'success');
+                                    } catch (err) {
+                                      setError('Failed to delete class: ' + err.message);
+                                    }
+                                  }
+                                }}
+                              >Delete</button>
                               {selectedClass?.classCode === classData.classCode && (
                                 <div className="class-students" style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
                                   <h5 style={{ color: '#fff', marginBottom: '10px' }}>Enrolled Students:</h5>

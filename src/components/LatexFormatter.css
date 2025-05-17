@@ -1,0 +1,30 @@
+.latex-output {
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.latex-output .katex {
+  font-size: 1.1em;
+}
+
+.latex-output .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.preview-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.preview-container h4 {
+  margin-top: 0;
+  color: #666;
+} 
